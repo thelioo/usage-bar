@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Usage Bar</title>
+  <base href="../../src/" />
+  <script>
+    // Demo stub of the Tauri API; the stage page (index.html) drives it through window.demo.
+    const listeners = {};
+    const settings = { mode: "island", anchor: "top", expand_on: "hover", language: "en", providers: { claude: true, codex: true } };
+    const snap = {
+      accounts: [
+        { provider: "Claude", plan: "max", email: "you@example.com", sources: ["Windows", "WSL: Ubuntu"],
+          windows: [{ kind: "session", used_percent: 33, resets_at: new Date(Date.now() + 8.3e6).toISOString() },
+                    { kind: "weekly", used_percent: 20, resets_at: new Date(Date.now() + 2.6e8).toISOString() }] },
+        { provider: "Codex", plan: "pro", email: "you@example.com", sources: ["WSL: Ubuntu"],
+          windows: [{ kind: "session", used_percent: 41, resets_at: new Date(Date.now() + 1.1e7).toISOString() },
+                    { kind: "weekly", used_percent: 76, resets_at: new Date(Date.now() + 1.6e8).toISOString() }] },
+      ],
+      updated_at: new Date().toISOString(),
+    };
+    window.__TAURI__ = {
+      core: { invoke: async (cmd) => (cmd === "get_settings" ? settings : cmd === "get_usage" ? snap : null) },
+      event: { listen: async (name, fn) => { listeners[name] = fn; return () => {}; } },
+      window: { getCurrentWindow: () => ({ label: "main" }) },
+    };
+    window.demo = {
+      hover: (inside) => listeners["island-hover"]?.({ payload: inside }),
+      anchor: (anchor) => { settings.anchor = anchor; listeners["settings-changed"]?.({ payload: { ...settings } }); },
+      land: () => listeners["drop-enter"]?.({ payload: null }),
+    };
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="stage">
+  <div class="piece arm"></div><div class="piece arm"></div>
+  <div class="piece ear"></div><div class="piece ear"></div><div class="piece ear"></div>
+  <div id="island">
+   <div id="clip">
+    <div id="compact"><span class="dim" data-i18n="loading"></span></div>
+    <div id="compact-v"></div>
+    <div id="details">
+      <header>
+        <span class="title" data-i18n="title"></span>
+        <span id="updated" class="dim"></span>
+        <button id="open-settings" class="icon-btn" data-i18n-title="settings">
+          <svg viewBox="0 0 16 16" width="13" height="13"><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <button id="refresh" class="icon-btn" data-i18n-title="refresh">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </header>
+      <div id="accounts"></div>
+      <div class="grabber" data-i18n-title="dragHint"></div>
+    </div>
+   </div>
+  </div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
