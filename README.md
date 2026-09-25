@@ -15,9 +15,19 @@ Your Claude Code and Codex plan limits, in a Dynamic Island at the top of your s
 - **No sign-in**: reads the credentials Claude Code and Codex already saved.
 - **Windows + WSL**: finds accounts in your Windows profile and in every WSL distro.
 - **At a glance**: session and weekly limits, reset times, credits.
+- **Multiple accounts**: add as many Claude and Codex accounts as you like and switch with one click, or let it switch for you when one hits its limit.
 - **Goes where you want it**: drag it to the top, a side or the taskbar, on any monitor, or keep it as a tray icon.
 - **Stays out of the way**: hover to expand; clicks outside the island pass through.
 - **Speaks your language**: follows the system language (10 languages, English fallback).
+
+## Multiple accounts
+
+<p align="center"><img src="design/accounts.gif" width="560" alt="Switching accounts from the island, then switching back automatically at the limit" /></p>
+
+Add accounts in **Settings → Accounts**: Usage Bar opens the CLI's own sign-in (`claude auth login` / `codex login`) in an isolated folder, so your current login is untouched. Switching rewrites the CLI's login files in place; the official CLI keeps doing all the work. Turn on **Switch automatically** to move to the account with the most headroom when the active one reaches your threshold.
+
+> [!NOTE]
+> A running Codex session keeps its account until you restart it.
 
 ## Build
 

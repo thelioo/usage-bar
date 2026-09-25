@@ -45,20 +45,24 @@ jobs:
           $conf | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
           "version=$version" >> $env:GITHUB_OUTPUT
 
+      # Pull requests have no signing key: build without updater artifacts.
       - name: Build
         if: github.event_name == 'pull_request'
-        run: pnpm tauri build
+        run: pnpm tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       - name: Build and release
         if: github.event_name != 'pull_request'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the installers; the app only accepts updates signed with this key.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           tagName: v${{ steps.version.outputs.version }}
           releaseName: Usage Bar v${{ steps.version.outputs.version }}
           releaseBody: Built from ${{ github.sha }}.
           releaseDraft: false
           prerelease: false
-          includeUpdaterJson: false
+          includeUpdaterJson: true
           uploadPlainBinary: true

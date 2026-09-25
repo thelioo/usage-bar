@@ -1,3 +1,5 @@
+mod accounts;
+mod balancer;
 mod dock;
 mod island;
 mod model;
@@ -5,6 +7,7 @@ mod panel;
 mod providers;
 mod settings;
 mod sources;
+mod updates;
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -16,6 +19,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
 use tauri_plugin_autostart::ManagerExt;
 
+use accounts::Provider;
 use model::Snapshot;
 use settings::{DisplayMode, Settings};
 
@@ -34,6 +38,12 @@ pub struct AppState {
     /// Content width of the taskbar widget, in CSS px.
     dock_width: Mutex<f64>,
     dragging: Mutex<bool>,
+    /// Last known usage per account, for accounts whose saved token can't be used right now.
+    usage_cache: Mutex<providers::Cache>,
+    /// When each provider was last switched automatically (the balancer's cooldown).
+    last_switch: Mutex<HashMap<Provider, Instant>>,
+    /// Sources found by the last refresh, where switches are written.
+    sources: Mutex<Vec<sources::Source>>,
 }
 
 #[tauri::command]
@@ -44,6 +54,111 @@ fn get_usage(state: tauri::State<AppState>) -> Snapshot {
 #[tauri::command]
 async fn refresh(app: AppHandle) -> Snapshot {
     do_refresh(&app).await
+}
+
+#[derive(Clone, Serialize)]
+struct Switched {
+    provider: Provider,
+    from: Option<String>,
+    to: Option<String>,
+    auto: bool,
+}
+
+/// Display name of an account: its alias, else its email.
+fn account_label(app: &AppHandle, provider: Provider, id: &str) -> Option<String> {
+    let snapshot = app.state::<AppState>().snapshot.lock().unwrap().clone();
+    snapshot
+        .accounts
+        .iter()
+        .find(|a| a.provider == provider && a.id == id)
+        .and_then(|a| a.alias.clone().or(a.email.clone()))
+}
+
+async fn switch_to(app: &AppHandle, provider: Provider, id: String, auto: bool) -> Result<(), String> {
+    let found = app.state::<AppState>().sources.lock().unwrap().clone();
+    let from = {
+        let snapshot = app.state::<AppState>().snapshot.lock().unwrap().clone();
+        snapshot.accounts.iter().find(|a| a.provider == provider && a.active).map(|a| a.id.clone())
+    };
+    let target = id.clone();
+    tauri::async_runtime::spawn_blocking(move || accounts::switch(&found, provider, &target))
+        .await
+        .map_err(|e| e.to_string())??;
+    let event = Switched {
+        provider,
+        from: from.and_then(|f| account_label(app, provider, &f)),
+        to: account_label(app, provider, &id),
+        auto,
+    };
+    let _ = app.emit("account-switched", event);
+    Ok(())
+}
+
+#[tauri::command]
+async fn switch_account(app: AppHandle, provider: Provider, id: String) -> Result<Snapshot, String> {
+    switch_to(&app, provider, id, false).await?;
+    Ok(do_refresh(&app).await)
+}
+
+/// Opens a terminal running the CLI's own sign-in; the account appears once it finishes.
+#[tauri::command]
+async fn add_account(app: AppHandle, provider: Provider) -> Result<(), String> {
+    let found = {
+        let known = app.state::<AppState>().sources.lock().unwrap().clone();
+        if known.is_empty() {
+            tauri::async_runtime::spawn_blocking(sources::discover).await.unwrap_or_default()
+        } else {
+            known
+        }
+    };
+    // Probing for the CLI runs wsl.exe / where.exe; keep it off the async runtime.
+    let job = tauri::async_runtime::spawn_blocking(move || accounts::start_login(provider, &found))
+        .await
+        .map_err(|e| e.to_string())??;
+    tauri::async_runtime::spawn(async move {
+        let added = job.wait(&http_client()).await;
+        if let Some(slot) = added {
+            let _ = app.emit("account-added", (slot.provider, slot.email));
+            do_refresh(&app).await;
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+async fn remove_account(app: AppHandle, provider: Provider, id: String) -> Result<Snapshot, String> {
+    let active = {
+        let snapshot = app.state::<AppState>().snapshot.lock().unwrap().clone();
+        snapshot.accounts.iter().any(|a| a.provider == provider && a.id == id && a.active)
+    };
+    if active {
+        // It would be captured again from the CLI on the next refresh.
+        return Err("active".into());
+    }
+    accounts::remove_slot(provider, &id).map_err(|e| e.to_string())?;
+    app.state::<AppState>().usage_cache.lock().unwrap().remove(&id);
+    Ok(do_refresh(&app).await)
+}
+
+#[tauri::command]
+async fn check_for_updates(app: AppHandle) -> Result<updates::UpdateInfo, String> {
+    updates::check(&app).await
+}
+
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    updates::install(&app).await
+}
+
+#[tauri::command]
+fn app_version(app: AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+
+/// The OS display language (WebView2's navigator.languages doesn't follow it reliably).
+#[tauri::command]
+fn system_locale() -> Option<String> {
+    sys_locale::get_locale()
 }
 
 #[tauri::command]
@@ -194,20 +309,57 @@ fn show_usage(app: &AppHandle) {
     }
 }
 
+fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(20))
+        .build()
+        .expect("http client")
+}
+
+/// Captures live logins into the vault, fetches every account's usage, then lets the balancer
+/// switch accounts that reached their threshold.
 async fn do_refresh(app: &AppHandle) -> Snapshot {
-    let enabled = app.state::<AppState>().settings.lock().unwrap().providers.clone();
+    let state = app.state::<AppState>();
+    let settings = state.settings.lock().unwrap().clone();
     let found = tauri::async_runtime::spawn_blocking(sources::discover)
         .await
         .unwrap_or_default();
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(20))
-        .build()
-        .expect("http client");
-    let snapshot = Snapshot {
-        accounts: providers::fetch_all(&client, &found, &enabled).await,
-        updated_at: Some(chrono::Utc::now()),
+    *state.sources.lock().unwrap() = found.clone();
+    accounts::resolve_identities(&http_client(), &found).await;
+    let scan = found.clone();
+    let (active, slots) = tauri::async_runtime::spawn_blocking(move || (accounts::capture(&scan), accounts::load_slots()))
+        .await
+        .unwrap_or_default();
+
+    let mut cache = state.usage_cache.lock().unwrap().clone();
+    let mut list = providers::fetch_all(&http_client(), &slots, &active, &mut cache, &settings).await;
+    *state.usage_cache.lock().unwrap() = cache;
+
+    let decisions = {
+        let last = state.last_switch.lock().unwrap().clone();
+        balancer::decide(&list, &settings, &last)
     };
-    *app.state::<AppState>().snapshot.lock().unwrap() = snapshot.clone();
+    for (provider, id) in decisions {
+        // Publish the current numbers first so the switch notice can name both accounts.
+        *state.snapshot.lock().unwrap() = Snapshot { accounts: list.clone(), updated_at: Some(chrono::Utc::now()) };
+        if switch_to(app, provider, id.clone(), true).await.is_ok() {
+            state.last_switch.lock().unwrap().insert(provider, Instant::now());
+            for a in list.iter_mut().filter(|a| a.provider == provider) {
+                let now_active = a.id == id;
+                if now_active != a.active {
+                    a.sources = if now_active {
+                        found.iter().map(|s| s.label.clone()).collect()
+                    } else {
+                        vec![]
+                    };
+                    a.active = now_active;
+                }
+            }
+        }
+    }
+
+    let snapshot = Snapshot { accounts: list, updated_at: Some(chrono::Utc::now()) };
+    *state.snapshot.lock().unwrap() = snapshot.clone();
     let _ = app.emit("usage-updated", &snapshot);
     snapshot
 }
@@ -239,8 +391,14 @@ pub fn run() {
         panel_hidden_at: Mutex::default(),
         dock_width: Mutex::new(160.0),
         dragging: Mutex::default(),
+        usage_cache: Mutex::default(),
+        last_switch: Mutex::default(),
+        sources: Mutex::default(),
     };
     tauri::Builder::default()
+        // Must come first: a second launch hands over to the running instance and exits.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_settings(app)))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(state)
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -250,12 +408,19 @@ pub fn run() {
             get_usage,
             refresh,
             get_settings,
+            system_locale,
+            check_for_updates,
+            install_update,
+            app_version,
             save_settings,
             list_monitors,
             open_settings,
             set_panel_height,
             set_hit_shape,
             set_tray_labels,
+            switch_account,
+            add_account,
+            remove_account,
             start_drag,
             set_dock_width,
             dock_clicked,
@@ -339,6 +504,7 @@ pub fn run() {
             let h = handle.clone();
             std::thread::spawn(move || dock::keep_docked(h));
             tauri::async_runtime::spawn(refresh_loop(handle.clone()));
+            tauri::async_runtime::spawn(updates::run_loop(handle.clone()));
             Ok(())
         })
         .run(tauri::generate_context!())

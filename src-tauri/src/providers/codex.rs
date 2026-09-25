@@ -1,28 +1,12 @@
-//! Codex CLI: reads ChatGPT tokens from `~/.codex/auth.json`.
+//! Codex usage from a saved ChatGPT login.
 
 use chrono::{TimeZone, Utc};
 use serde::Deserialize;
 
-use crate::model::{AccountUsage, UsageWindow};
-use crate::sources::Source;
-
-const PROVIDER: &str = "Codex";
-
-#[derive(Deserialize)]
-struct Auth {
-    tokens: Option<Tokens>,
-}
-
-#[derive(Deserialize)]
-struct Tokens {
-    access_token: String,
-    account_id: Option<String>,
-}
+use crate::model::UsageWindow;
 
 #[derive(Deserialize)]
 struct Usage {
-    email: Option<String>,
-    plan_type: Option<String>,
     rate_limit: Option<RateLimit>,
     credits: Option<Credits>,
 }
@@ -47,62 +31,56 @@ struct Credits {
     balance: Option<String>,
 }
 
-pub async fn fetch(client: &reqwest::Client, source: &Source) -> Option<AccountUsage> {
-    let text = std::fs::read_to_string(source.codex_dir().join("auth.json")).ok()?;
-    let tokens = serde_json::from_str::<Auth>(&text).ok()?.tokens?;
+pub struct CodexUsage {
+    pub windows: Vec<UsageWindow>,
+    pub credits: Option<String>,
+}
 
-    let mut acc = AccountUsage::new(PROVIDER, &source.label);
+/// Fetches the usage windows, or an error code (see `model::AccountUsage::error`).
+pub async fn fetch(client: &reqwest::Client, token: &str, account_id: Option<&str>) -> Result<CodexUsage, String> {
     let mut req = client
         .get("https://chatgpt.com/backend-api/wham/usage")
-        .bearer_auth(&tokens.access_token)
+        .bearer_auth(token)
         .header("User-Agent", "codex-cli");
-    if let Some(id) = &tokens.account_id {
+    if let Some(id) = account_id {
         req = req.header("ChatGPT-Account-Id", id);
     }
-
-    let resp = match req.send().await {
-        Ok(r) => r,
-        Err(e) => return Some(AccountUsage::failed(PROVIDER, &source.label, e.to_string())),
-    };
+    let resp = req.send().await.map_err(|e| e.to_string())?;
     if resp.status() == 401 || resp.status() == 403 {
-        acc.error = Some("token_invalid".into());
-        return Some(acc);
+        return Err("token_invalid".into());
+    }
+    if resp.status() == 429 {
+        return Err(super::rate_limited(&resp));
     }
     if !resp.status().is_success() {
-        acc.error = Some(format!("http_{}", resp.status().as_u16()));
-        return Some(acc);
+        return Err(format!("http_{}", resp.status().as_u16()));
     }
-
-    let usage = match resp.json::<Usage>().await {
-        Ok(u) => u,
-        Err(_) => {
-            acc.error = Some("bad_response".into());
-            return Some(acc);
-        }
-    };
-
-    acc.email = usage.email;
-    acc.plan = usage.plan_type;
-    if let Some(rl) = usage.rate_limit {
-        acc.windows = [rl.primary_window, rl.secondary_window]
-            .into_iter()
-            .flatten()
-            .map(|w| UsageWindow {
-                kind: window_kind(w.limit_window_seconds).into(),
-                window_seconds: w.limit_window_seconds,
-                used_percent: w.used_percent,
-                resets_at: w.reset_at.and_then(|t| Utc.timestamp_opt(t, 0).single()),
-            })
-            .collect();
-    }
-    if let Some(c) = usage.credits {
+    let usage: Usage = resp.json().await.map_err(|_| "bad_response".to_string())?;
+    let windows = usage
+        .rate_limit
+        .map(|rl| {
+            [rl.primary_window, rl.secondary_window]
+                .into_iter()
+                .flatten()
+                .map(|w| UsageWindow {
+                    kind: window_kind(w.limit_window_seconds).into(),
+                    window_seconds: w.limit_window_seconds,
+                    used_percent: w.used_percent,
+                    resets_at: w.reset_at.and_then(|t| Utc.timestamp_opt(t, 0).single()),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let credits = usage.credits.and_then(|c| {
         if c.unlimited == Some(true) {
-            acc.credits = Some("unlimited".into());
+            Some("unlimited".into())
         } else if c.has_credits == Some(true) {
-            acc.credits = c.balance;
+            c.balance
+        } else {
+            None
         }
-    }
-    Some(acc)
+    });
+    Ok(CodexUsage { windows, credits })
 }
 
 fn window_kind(seconds: Option<i64>) -> &'static str {

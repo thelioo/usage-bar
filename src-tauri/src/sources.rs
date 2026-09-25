@@ -11,6 +11,10 @@ pub struct Source {
     /// Explicit config dirs (only honored for the native source, from env vars).
     pub claude_dir: Option<PathBuf>,
     pub codex_dir: Option<PathBuf>,
+    /// The WSL distro this source lives in, if any.
+    pub distro: Option<String>,
+    /// The home directory as seen from inside the source (e.g. /home/me in WSL).
+    pub native_home: String,
 }
 
 impl Source {
@@ -20,6 +24,14 @@ impl Source {
     pub fn codex_dir(&self) -> PathBuf {
         self.codex_dir.clone().unwrap_or_else(|| self.home.join(".codex"))
     }
+    /// Claude Code keeps account details in `.claude.json`: in the home directory by default,
+    /// inside the config dir when CLAUDE_CONFIG_DIR is set.
+    pub fn claude_json(&self) -> PathBuf {
+        match &self.claude_dir {
+            Some(dir) => dir.join(".claude.json"),
+            None => self.home.join(".claude.json"),
+        }
+    }
 }
 
 pub fn discover() -> Vec<Source> {
@@ -27,9 +39,11 @@ pub fn discover() -> Vec<Source> {
     if let Some(home) = dirs::home_dir() {
         out.push(Source {
             label: if cfg!(windows) { "Windows".into() } else { "Local".into() },
-            home,
             claude_dir: std::env::var_os("CLAUDE_CONFIG_DIR").map(PathBuf::from),
             codex_dir: std::env::var_os("CODEX_HOME").map(PathBuf::from),
+            distro: None,
+            native_home: home.to_string_lossy().into_owned(),
+            home,
         });
     }
     #[cfg(windows)]
@@ -37,7 +51,7 @@ pub fn discover() -> Vec<Source> {
     out
 }
 
-fn command(program: &str) -> Command {
+pub fn command(program: &str) -> Command {
     #[allow(unused_mut)]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
@@ -72,6 +86,8 @@ fn wsl_sources() -> Vec<Source> {
                 home: unc,
                 claude_dir: None,
                 codex_dir: None,
+                distro: Some(distro.to_string()),
+                native_home: home,
             })
         })
         .collect()

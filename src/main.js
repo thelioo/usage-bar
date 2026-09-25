@@ -1,4 +1,4 @@
-import { t, resetsIn, windowLabel, errorText, creditsText, time, translateDom, setLanguage } from "./i18n.js";
+import { t, resetsIn, windowLabel, errorText, creditsText, time, translateDom, setLanguage, setSystemLocale, duration } from "./i18n.js";
 import { layoutFor, applyLayout, hitShape, kindOf, mix } from "./shape.js";
 
 const { invoke } = window.__TAURI__.core;
@@ -89,48 +89,139 @@ const peak = (a) => a.windows.reduce((m, w) => (w.used_percent > (m?.used_percen
 const chip = (a) => {
   const w = peak(a);
   const value = w ? `${ring(w.used_percent)}${Math.round(w.used_percent)}%` : `<span style="color:var(--warn)">!</span>`;
-  return `<span class="chip"><span class="name">${esc(a.provider)}</span>${value}</span>`;
+  return `<span class="chip"><span class="name">${PROVIDER_NAME[a.provider]}</span>${value}</span>`;
 };
+
+let toast = null;
+let toastTimer;
+
+/** Briefly replaces the collapsed content with a notice (e.g. an automatic account switch). */
+function showToast(text) {
+  toast = text;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toast = null; render(lastSnap); }, 4000);
+  render(lastSnap);
+}
+
+listen("update-installing", ({ payload: version }) => showToast(t("updating", { v: version })));
+
+listen("account-switched", ({ payload: s }) => {
+  const name = PROVIDER_NAME[s.provider];
+  showToast(t(s.auto ? "switchedAuto" : "switched", { provider: name, to: s.to ?? "" }));
+});
 
 /** Chips run across the top bar or down a side bar. */
 function renderCompact(snap) {
   let items;
   if (!snap.updated_at) items = [`<span class="dim">${t("loading")}</span>`];
   else if (!snap.accounts.length) items = [`<span class="dim">${t("noAccounts")}</span>`];
-  else items = snap.accounts.map(chip);
+  else if (toast) items = [`<span class="chip toast">${esc(toast)}</span>`];
+  else {
+    const shown = ["claude", "codex"]
+      .map((p) => snap.accounts.find((a) => a.provider === p && a.active) ?? snap.accounts.find((a) => a.provider === p))
+      .filter(Boolean);
+    items = shown.map(chip);
+  }
   const kind = IS_MAIN ? kindOf(anchor) : "top";
   const split = kind === "side" ? 0 : items.length;
   $compact.innerHTML = items.slice(0, split).join("");
   $compactV.innerHTML = items.slice(split).join("");
 }
 
+const PROVIDER_NAME = { claude: "Claude", codex: "Codex" };
+const accountName = (a) => a.alias || a.email || t("unknownAccount");
+
+function bars(a, delay) {
+  return a.windows.map((w) => `
+    <div class="win">
+      <div class="row"><span>${esc(windowLabel(w))}</span><b>${Math.round(w.used_percent)}%</b></div>
+      <div class="bar"><div style="width:${Math.min(100, w.used_percent)}%;background:${color(w.used_percent)};transition-delay:${delay}s"></div></div>
+      ${w.resets_at ? `<div class="reset">${esc(resetsIn(w.resets_at))}</div>` : ""}
+    </div>`).join("");
+}
+
+/** One section per provider; each account shows its usage, the signed-in one marked "in use". */
 function renderDetails(snap) {
-  $updated.textContent = snap.updated_at
-    ? time(snap.updated_at)
-    : "";
+  $updated.textContent = snap.updated_at ? time(snap.updated_at) : "";
   if (!snap.accounts.length) {
-    $accounts.innerHTML = `<p class="empty">${snap.updated_at
-      ? t("noCredentials")
-      : t("searching")}</p>`;
+    $accounts.innerHTML = `<p class="empty">${snap.updated_at ? t("noCredentials") : t("searching")}</p>`;
     return;
   }
-  $accounts.innerHTML = snap.accounts.map((a, i) => `
-    <section style="transition-delay:${0.12 + i * 0.05}s">
-      <div class="acc-head">
-        <span class="name">${esc(a.provider)}</span>
-        ${a.plan ? `<span class="plan">${esc(a.plan)}</span>` : ""}
-      </div>
-      <div class="acc-meta">${esc([a.email, a.sources.join(" + ")].filter(Boolean).join(" · "))}</div>
-      ${a.error ? `<div class="error">${esc(errorText(a.provider, a.error))}</div>` : ""}
-      ${a.windows.map((w) => `
-        <div class="win">
-          <div class="row"><span>${esc(windowLabel(w))}</span><b>${Math.round(w.used_percent)}%</b></div>
-          <div class="bar"><div style="width:${Math.min(100, w.used_percent)}%;background:${color(w.used_percent)};transition-delay:${0.15 + i * 0.05}s"></div></div>
-          ${w.resets_at ? `<div class="reset">${esc(resetsIn(w.resets_at))}</div>` : ""}
-        </div>`).join("")}
-      ${a.credits ? `<div class="reset" style="margin-top:6px">${esc(creditsText(a.credits))}</div>` : ""}
-    </section>`).join("");
+  const groups = ["claude", "codex"]
+    .map((p) => [p, snap.accounts.filter((a) => a.provider === p)])
+    .filter(([, list]) => list.length);
+  let i = 0;
+  patch($accounts, groups.map(([provider, list]) => `
+    <section style="transition-delay:${0.12 + i++ * 0.05}s">
+      <div class="acc-head"><span class="name">${PROVIDER_NAME[provider]}</span></div>
+      ${list.map((a) => {
+        const stale = a.stale && a.fetched_at
+          ? t("staleAgo", { t: duration(Math.max(1, Math.round((Date.now() - new Date(a.fetched_at)) / 60000))) })
+          : "";
+        // Every row has one detail line, whatever its state, so switching doesn't change heights.
+        const meta = [a.active ? a.sources.join(" + ") : a.alias ? a.email : "", a.org, stale].filter(Boolean).join(" · ") || "\u00a0";
+        return `
+        <div class="acct ${a.active ? "active" : ""}" data-key="${provider}:${esc(a.id)}">
+          <div class="acct-head">
+            <span class="who">${esc(accountName(a))}</span>
+            ${a.plan ? `<span class="plan">${esc(a.plan)}</span>` : ""}
+            ${a.active
+              ? `<span class="in-use ${a.pending ? "pending" : ""}">${t("inUse")}</span>`
+              : `<button class="use" data-provider="${provider}" data-id="${esc(a.id)}">${t("use")}</button>`}
+          </div>
+          <div class="acc-meta">${esc(meta)}</div>
+          ${a.error ? `<div class="error">${esc(errorText(PROVIDER_NAME[provider], a.error))}</div>` : ""}
+          ${bars(a, 0.15 + i * 0.05)}
+          ${a.credits ? `<div class="reset" style="margin-top:6px">${esc(creditsText(a.credits))}</div>` : ""}
+        </div>`;
+      }).join("")}
+    </section>`).join(""));
 }
+
+/**
+ * Updates the account list in place: when the same accounts are shown, only rows whose markup
+ * changed are replaced, so the others (and their buttons) don't flicker on every refresh.
+ */
+function patch(container, html) {
+  const next = document.createElement("div");
+  next.innerHTML = html;
+  const keys = (root) => [...root.querySelectorAll("[data-key]")].map((el) => el.dataset.key).join("|");
+  const sameRows = container.querySelector("[data-key]") && keys(container) === keys(next);
+  if (!sameRows) {
+    if (container.innerHTML !== next.innerHTML) container.replaceChildren(...next.childNodes);
+    return;
+  }
+  const fresh = new Map([...next.querySelectorAll("[data-key]")].map((el) => [el.dataset.key, el]));
+  for (const row of container.querySelectorAll("[data-key]")) {
+    const replacement = fresh.get(row.dataset.key);
+    if (replacement && replacement.outerHTML !== row.outerHTML) row.replaceWith(replacement);
+  }
+}
+
+$accounts.addEventListener("click", async (e) => {
+  const button = e.target.closest("button.use");
+  if (!button) return;
+  const { provider, id } = button.dataset;
+  button.disabled = true;
+  button.classList.add("busy");
+  // Show the new active account right away; the backend confirms (or reverts) it.
+  const before = lastSnap;
+  holdSize = true;
+  render({
+    ...lastSnap,
+    accounts: lastSnap.accounts.map((a) => (a.provider === provider ? { ...a, active: a.id === id, pending: a.id === id } : a)),
+  });
+  holdSize = true;
+  try {
+    const result = await invoke("switch_account", { provider, id });
+    holdSize = false;
+    render(result);
+  } catch (err) {
+    holdSize = false;
+    render(before);
+    showToast(errorText("", String(err)));
+  }
+});
 
 const compactWidth = () => Math.max(160, Math.ceil($compact.scrollWidth));
 const expandedHeight = () => Math.min(MAX_H, Math.ceil($details.scrollHeight));
@@ -155,7 +246,26 @@ function reportShape(layout) {
  */
 const SPRINGS = { open: { response: 0.42, damping: 0.8 }, close: { response: 0.34, damping: 1 } };
 const motion = { p: 0, v: 0, target: 0, raf: 0, last: 0 };
-let geo = null; // { collapsed, expanded, rest, sizes }
+let geo = null; // { collapsed, expanded, from, rest, sizes }
+/** Size changes while open (content grew or shrank) glide instead of snapping. */
+const morph = { t: 1, start: 0, raf: 0 };
+const MORPH_MS = 420;
+const easeOut = (x) => 1 - (1 - x) ** 4;
+
+function runMorph() {
+  morph.start = performance.now();
+  morph.t = 0;
+  if (morph.raf) return;
+  const tick = (now) => {
+    morph.t = Math.min(1, (now - morph.start) / MORPH_MS);
+    paint();
+    morph.raf = morph.t < 1 ? requestAnimationFrame(tick) : 0;
+  };
+  morph.raf = requestAnimationFrame(tick);
+}
+
+/** The open shape as currently drawn (mid-morph if a size change is gliding). */
+const openShape = () => (geo.from && morph.t < 1 ? mix(geo.from, geo.expanded, easeOut(morph.t)) : geo.expanded);
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
@@ -192,7 +302,7 @@ function paint() {
   if (!geo) return;
   const p = motion.p;
   const q = clamp01(p);
-  const shape = mix(geo.collapsed, geo.expanded, p);
+  const shape = mix(geo.collapsed, openShape(), p);
   const box = applyLayout(shape, pieces);
 
   // Collapsed content stays where it rests on the arms and dissolves quickly.
@@ -224,8 +334,12 @@ function paint() {
   for (const arm of pieces.arms) arm.style.boxShadow = shadow;
 }
 
+/** While an account switch is in flight, the shape keeps its size and resizes once at the end. */
+let holdSize = false;
+
 /** Recomputes both end states (content may have changed) and repaints at the current position. */
 function layout() {
+  if (holdSize && geo) return;
   if (IS_DOCK) {
     invoke("set_dock_width", { width: Math.ceil($compact.scrollWidth) });
     return;
@@ -243,7 +357,11 @@ function layout() {
   };
   const collapsed = layoutFor(anchor, { ...sizes, expanded: false }, W, H);
   const expandedL = layoutFor(anchor, { ...sizes, expanded: true }, W, H);
-  geo = { collapsed, expanded: expandedL, rest: collapsed, sizes };
+  const previous = geo;
+  const sameShape = previous && previous.anchor === anchor;
+  const from = sameShape && motion.p > 0.01 ? openShape() : null;
+  geo = { collapsed, expanded: expandedL, from, rest: collapsed, sizes, anchor };
+  if (from && JSON.stringify(from.arms) !== JSON.stringify(expandedL.arms)) runMorph();
 
   $stage.style.transformOrigin = `${collapsed.origin[0]}px ${collapsed.origin[1]}px`;
 
@@ -400,7 +518,9 @@ function applySettings(settings) {
 }
 
 listen("settings-changed", (e) => applySettings(e.payload));
-invoke("get_settings").then(applySettings);
+invoke("system_locale")
+  .then(setSystemLocale, () => {})
+  .finally(() => invoke("get_settings").then(applySettings));
 
 $refresh.addEventListener("click", async () => {
   $refresh.classList.add("spin");

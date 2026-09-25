@@ -1,6 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
+use crate::accounts::Provider;
+
 #[derive(Debug, Clone, Serialize)]
 pub struct UsageWindow {
     /// "session", "weekly", "weekly_opus", "weekly_sonnet" or "window"; translated by the frontend.
@@ -12,36 +14,33 @@ pub struct UsageWindow {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AccountUsage {
-    pub provider: String,
-    /// Where the credentials were found, e.g. "Windows" or "WSL: Ubuntu".
-    pub sources: Vec<String>,
+    /// Vault slot id; stable across token refreshes.
+    pub id: String,
+    pub provider: Provider,
     pub email: Option<String>,
+    pub alias: Option<String>,
     pub plan: Option<String>,
+    pub org: Option<String>,
+    /// Whether this account is the one signed in to the CLI.
+    pub active: bool,
+    /// Where it is signed in, e.g. "Windows" or "WSL: Ubuntu".
+    pub sources: Vec<String>,
     pub windows: Vec<UsageWindow>,
     /// A balance, or "unlimited".
     pub credits: Option<String>,
     /// An error code ("token_expired", "token_invalid", "bad_response", "http_<status>")
     /// or a raw network error message.
     pub error: Option<String>,
+    /// The numbers are the last ones known (the saved token can't be used right now); windows
+    /// whose reset time has passed are shown as empty.
+    pub stale: bool,
+    pub fetched_at: Option<DateTime<Utc>>,
 }
 
 impl AccountUsage {
-    pub fn new(provider: &str, source: &str) -> Self {
-        Self {
-            provider: provider.into(),
-            sources: vec![source.into()],
-            email: None,
-            plan: None,
-            windows: vec![],
-            credits: None,
-            error: None,
-        }
-    }
-
-    pub fn failed(provider: &str, source: &str, error: impl Into<String>) -> Self {
-        let mut a = Self::new(provider, source);
-        a.error = Some(error.into());
-        a
+    /// The highest usage across windows: what the balancer compares against its threshold.
+    pub fn peak(&self) -> Option<f64> {
+        self.windows.iter().map(|w| w.used_percent).reduce(f64::max)
     }
 }
 

@@ -72,13 +72,15 @@
         "label": "settings",
         "title": "Usage Bar",
         "url": "settings.html",
-        "width": 540,
-        "height": 640,
+        "width": 820,
+        "height": 600,
         "visible": false,
-        "resizable": false,
+        "resizable": true,
         "maximizable": false,
         "minimizable": false,
-        "center": true
+        "center": true,
+        "minWidth": 680,
+        "minHeight": 480
       }
     ],
     "security": {
@@ -96,6 +98,18 @@
       "icons/128x128.png",
       "icons/icon.ico",
       "icons/icon.png"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE0MDdFRDM5QzIxRTZGMTEKUldRUmJ4N0NPZTBIcEcvT2F1YThXMTB0UVRRREpMUmtPSjJUS1V4M2poTzdFUXBtejB0V1FNUFAK",
+      "endpoints": [
+        "https://github.com/thelioo/usage-bar/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

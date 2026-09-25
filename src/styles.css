@@ -231,3 +231,33 @@ body.main #compact:empty { display: none; }
 
 /* While dragging, the pill stands in for the cursor. */
 body.dock.floating, body.dock.floating *, body.dragging, body.dragging * { cursor: none !important; }
+
+/* Accounts inside a provider section */
+.acct { padding: 8px 10px 9px; margin: 6px -10px 0; border-radius: 12px; }
+.acct.active { background: rgba(255, 255, 255, 0.06); }
+.acct-head { display: flex; align-items: center; gap: 8px; }
+.acct-head .who { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.acct-head .in-use, .acct-head .use { margin-left: auto; flex: none; font-size: 10.5px; font-weight: 600; }
+.acct-head .in-use { color: var(--ok); }
+.acct-head .use {
+  border: 0; border-radius: 10px; padding: 3px 10px; cursor: pointer;
+  background: var(--track); color: var(--text); font-family: inherit;
+  transition: background 0.15s, transform 0.2s var(--fade);
+}
+.acct-head .use:hover { background: #3a3a3c; }
+.acct-head .use:active { transform: scale(0.94); }
+.acct-head .use:disabled { opacity: 0.6; cursor: default; }
+.acct .acc-meta { margin: 1px 0 2px; }
+.acct .win:first-of-type { margin-top: 6px; }
+.chip.toast { font-weight: 600; color: var(--text); }
+
+/* Switching feedback: the badge appears at once and settles when the backend confirms. */
+.acct { transition: background 0.3s var(--fade); }
+.acct-head .in-use { animation: badge-in 0.35s var(--fade); }
+.acct-head .in-use.pending { opacity: 0.55; }
+@keyframes badge-in { from { opacity: 0; transform: scale(0.85); } }
+.acct-head .use.busy { color: transparent; position: relative; }
+.acct-head .use.busy::after {
+  content: ""; position: absolute; inset: 0; margin: auto; width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid var(--dim); border-top-color: var(--text); animation: spin 0.7s linear infinite;
+}

@@ -1,6 +1,9 @@
 //! User preferences, persisted as JSON in the app config directory.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+
+use crate::accounts::Provider;
 
 use serde::{Deserialize, Serialize};
 
@@ -52,6 +55,37 @@ impl Default for Providers {
     }
 }
 
+/// Automatic switching for one provider.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Rule {
+    pub auto: bool,
+    /// Switch when any usage window of the signed-in account reaches this percentage.
+    pub threshold: u8,
+}
+
+impl Default for Rule {
+    fn default() -> Self {
+        Self { auto: false, threshold: 90 }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Balancer {
+    pub claude: Rule,
+    pub codex: Rule,
+}
+
+impl Balancer {
+    pub fn rule(&self, provider: Provider) -> Rule {
+        match provider {
+            Provider::Claude => self.claude,
+            Provider::Codex => self.codex,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -66,6 +100,11 @@ pub struct Settings {
     /// "auto" follows the system language.
     pub language: String,
     pub launch_at_login: bool,
+    /// Download and install new releases on their own.
+    pub auto_update: bool,
+    /// Display names for accounts, keyed by `provider:slot id`.
+    pub aliases: HashMap<String, String>,
+    pub balancer: Balancer,
 }
 
 impl Default for Settings {
@@ -79,6 +118,9 @@ impl Default for Settings {
             providers: Providers::default(),
             language: "auto".into(),
             launch_at_login: false,
+            auto_update: true,
+            aliases: HashMap::new(),
+            balancer: Balancer::default(),
         }
     }
 }
@@ -91,8 +133,13 @@ fn lenient_anchor<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Anchor, D::E
     Ok(serde_json::from_value(value).unwrap_or(Anchor::Top))
 }
 
+/// The app's data folder (settings and the account vault).
+pub fn app_dir() -> Option<PathBuf> {
+    dirs::config_dir().map(|d| d.join(IDENTIFIER))
+}
+
 fn path() -> Option<PathBuf> {
-    dirs::config_dir().map(|d| d.join(IDENTIFIER).join("settings.json"))
+    app_dir().map(|d| d.join("settings.json"))
 }
 
 pub fn load() -> Settings {

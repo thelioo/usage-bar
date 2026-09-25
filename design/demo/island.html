@@ -5,29 +5,41 @@
   <title>Usage Bar</title>
   <base href="../../src/" />
   <script>
-    // Demo stub of the Tauri API; the stage page (index.html) drives it through window.demo.
+    // Demo stub of the Tauri API; the stage pages drive it through window.demo.
     const listeners = {};
     const settings = { mode: "island", anchor: "top", expand_on: "hover", language: "en", providers: { claude: true, codex: true } };
-    const snap = {
+    const hours = (h) => new Date(Date.now() + h * 3.6e6).toISOString();
+    let snap = {
       accounts: [
-        { provider: "Claude", plan: "max", email: "you@example.com", sources: ["Windows", "WSL: Ubuntu"],
-          windows: [{ kind: "session", used_percent: 33, resets_at: new Date(Date.now() + 8.3e6).toISOString() },
-                    { kind: "weekly", used_percent: 20, resets_at: new Date(Date.now() + 2.6e8).toISOString() }] },
-        { provider: "Codex", plan: "pro", email: "you@example.com", sources: ["WSL: Ubuntu"],
-          windows: [{ kind: "session", used_percent: 41, resets_at: new Date(Date.now() + 1.1e7).toISOString() },
-                    { kind: "weekly", used_percent: 76, resets_at: new Date(Date.now() + 1.6e8).toISOString() }] },
+        { id: "work", provider: "claude", email: "me@acme.com", alias: "Work", plan: "max", org: "Acme", active: true, sources: ["Windows", "WSL: Ubuntu"],
+          windows: [{ kind: "session", used_percent: 33, resets_at: hours(2.3) }, { kind: "weekly", used_percent: 20, resets_at: hours(72) }] },
+        { id: "codex", provider: "codex", email: "you@example.com", plan: "pro", active: true, sources: ["WSL: Ubuntu"],
+          windows: [{ kind: "session", used_percent: 41, resets_at: hours(3) }, { kind: "weekly", used_percent: 76, resets_at: hours(44) }] },
       ],
       updated_at: new Date().toISOString(),
     };
+    let onSwitch = null;
     window.__TAURI__ = {
-      core: { invoke: async (cmd) => (cmd === "get_settings" ? settings : cmd === "get_usage" ? snap : null) },
+      core: {
+        invoke: async (cmd, args) => {
+          if (cmd === "get_settings") return settings;
+          if (cmd === "get_usage") return snap;
+          if (cmd === "switch_account" && onSwitch) return onSwitch(args);
+          return null;
+        },
+      },
       event: { listen: async (name, fn) => { listeners[name] = fn; return () => {}; } },
       window: { getCurrentWindow: () => ({ label: "main" }) },
     };
+    const emit = (name, payload) => listeners[name]?.({ payload });
     window.demo = {
-      hover: (inside) => listeners["island-hover"]?.({ payload: inside }),
-      anchor: (anchor) => { settings.anchor = anchor; listeners["settings-changed"]?.({ payload: { ...settings } }); },
-      land: () => listeners["drop-enter"]?.({ payload: null }),
+      hover: (inside) => emit("island-hover", inside),
+      anchor: (anchor) => { settings.anchor = anchor; emit("settings-changed", { ...settings }); },
+      land: () => emit("drop-enter", null),
+      setSnap: (next) => { snap = next; emit("usage-updated", snap); },
+      getSnap: () => snap,
+      onSwitch: (fn) => { onSwitch = fn; },
+      switched: (payload) => emit("account-switched", payload),
     };
   </script>
   <link rel="stylesheet" href="styles.css" />
