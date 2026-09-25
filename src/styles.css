@@ -161,7 +161,7 @@ body.panel #island {
 }
 body.panel #island::before, body.panel #island::after, body.panel #compact { display: none; }
 body.panel #clip { position: static; }
-body.panel #details { position: static; transform: none; width: 100%; max-height: none; }
+body.panel #details, body.panel #island.expanded #details { position: static; transform: none; width: 100%; max-height: none; }
 body.panel #island #details { animation: panel-in var(--content-dur) var(--content); }
 @keyframes panel-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
 
