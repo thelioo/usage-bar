@@ -1,0 +1,8 @@
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+
+# Local editor tooling
+.agents/
+.claude/
+skills-lock.json

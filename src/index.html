@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Usage Bar</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="island">
+   <div id="clip">
+    <div id="compact"><span class="dim" data-i18n="loading"></span></div>
+    <div id="details">
+      <header>
+        <span class="title" data-i18n="title"></span>
+        <span id="updated" class="dim"></span>
+        <button id="refresh" data-i18n-title="refresh">
+          <svg viewBox="0 0 16 16" width="13" height="13"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </header>
+      <div id="accounts"></div>
+    </div>
+   </div>
+  </div>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

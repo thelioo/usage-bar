@@ -1,0 +1,153 @@
+@property --ear { syntax: "<length>"; inherits: true; initial-value: 8px; }
+@property --radius { syntax: "<length>"; inherits: true; initial-value: 12px; }
+:root {
+  --island: #000;
+  --text: #f5f5f7;
+  --dim: #8e8e93;
+  --track: #2c2c2e;
+  --ok: #30d158;
+  --warn: #ff9f0a;
+  --bad: #ff453a;
+  --ear: 8px;
+  --radius: 12px;
+  /* Springs are generated in main.js; these are fallbacks. */
+  --open: cubic-bezier(0.32, 0.72, 0, 1);
+  --open-dur: 0.5s;
+  --close: cubic-bezier(0.32, 0.72, 0, 1);
+  --close-dur: 0.4s;
+  --content: cubic-bezier(0.32, 0.72, 0, 1);
+  --content-dur: 0.5s;
+  --spring: var(--close);
+  --spring-dur: var(--close-dur);
+  --fade: cubic-bezier(0.2, 0, 0, 1);
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { background: transparent; overflow: hidden; height: 100%; }
+body {
+  color: var(--text);
+  font: 12px/1.35 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  user-select: none;
+  cursor: default;
+  -webkit-font-smoothing: antialiased;
+}
+.dim { color: var(--dim); }
+
+/* Glued to the top edge of the monitor, like a notch. */
+#island {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 32px;
+  background: var(--island);
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  transition:
+    width var(--spring-dur) var(--spring),
+    height var(--spring-dur) var(--spring),
+    --radius var(--spring-dur) var(--spring),
+    --ear var(--spring-dur) var(--spring),
+    box-shadow 0.3s var(--fade);
+  will-change: width, height;
+}
+#island.expanded {
+  --radius: 30px;
+  --ear: 14px;
+  --spring: var(--open);
+  --spring-dur: var(--open-dur);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Concave "ears" blending the island into the screen edge. */
+#island::before, #island::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  /* 1px overlap with the island hides the sub-pixel seam where they meet. */
+  width: calc(var(--ear) + 1px);
+  height: var(--ear);
+}
+#island::before {
+  left: calc(-1 * var(--ear));
+  background: radial-gradient(circle at 0 100%, transparent calc(var(--ear) - 0.5px), var(--island) var(--ear));
+}
+#island::after {
+  right: calc(-1 * var(--ear));
+  background: radial-gradient(circle at 100% 100%, transparent calc(var(--ear) - 0.5px), var(--island) var(--ear));
+}
+
+#clip { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+
+#compact {
+  position: absolute; top: 0; left: 50%;
+  height: 32px; padding: 0 16px;
+  display: flex; align-items: center; gap: 14px; white-space: nowrap;
+  transform: translateX(-50%);
+  transition: opacity 0.22s var(--fade) 0.08s, filter 0.3s var(--fade) 0.05s, transform 0.4s var(--fade);
+}
+#island.expanded #compact {
+  opacity: 0; filter: blur(8px); transform: translateX(-50%) scale(1.25);
+  transition: opacity 0.12s var(--fade), filter 0.18s var(--fade), transform var(--open-dur) var(--open);
+}
+
+.chip { display: flex; align-items: center; gap: 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.chip .name { color: var(--dim); font-weight: 500; }
+.ring { width: 15px; height: 15px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 3; }
+.ring .bg { stroke: var(--track); }
+.ring .fg { stroke-linecap: round; transition: stroke-dasharray 0.8s var(--content); }
+
+#details {
+  position: absolute; top: 0; left: 50%; width: 380px; max-height: 580px; overflow-y: auto;
+  padding: 16px 20px 18px;
+  opacity: 0; filter: blur(10px);
+  transform: translateX(-50%) scale(0.8);
+  transform-origin: top center;
+  transition: opacity 0.1s var(--fade), filter 0.12s var(--fade), transform var(--close-dur) var(--close);
+  pointer-events: none;
+}
+#details::-webkit-scrollbar { width: 0; }
+#island.expanded #details {
+  opacity: 1; filter: none; transform: translateX(-50%);
+  pointer-events: auto;
+  transition: opacity 0.25s var(--fade) 0.06s, filter 0.3s var(--fade) 0.04s, transform var(--content-dur) var(--content);
+}
+
+header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+header .title { font-weight: 600; font-size: 13px; }
+header #updated { margin-left: auto; font-size: 11px; }
+#refresh {
+  display: grid; place-items: center; width: 24px; height: 24px;
+  border: 0; border-radius: 12px; background: var(--track); color: var(--text); cursor: pointer;
+  transition: background 0.15s, transform 0.2s var(--fade);
+}
+#refresh:hover { background: #3a3a3c; }
+#refresh:active { transform: scale(0.9); }
+#refresh.spin svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#accounts { display: flex; flex-direction: column; gap: 16px; }
+.acc-head { display: flex; align-items: baseline; gap: 8px; }
+.acc-head .name { font-size: 14px; font-weight: 600; }
+.plan {
+  font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 1px 6px; border-radius: 6px; background: var(--track); color: var(--dim);
+}
+.acc-meta { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 1px 0 6px; }
+.win { margin-top: 8px; }
+.win .row { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.win .row b { font-weight: 600; }
+.bar { height: 5px; border-radius: 3px; background: var(--track); overflow: hidden; margin: 4px 0 3px; }
+.bar > div {
+  height: 100%; border-radius: 3px; transform-origin: left;
+  transition: transform 0.9s var(--content);
+}
+#island:not(.expanded) .bar > div { transform: scaleX(0); transition-duration: 0.2s; }
+.reset { font-size: 10.5px; color: var(--dim); }
+.error { color: var(--warn); font-size: 11.5px; margin-top: 4px; }
+.empty { color: var(--dim); padding: 4px 0 2px; }
+
+/* Stagger the sections in after the island opens. */
+#accounts > section { transition: opacity 0.3s var(--fade), transform var(--content-dur) var(--content); }
+#island:not(.expanded) #accounts > section { opacity: 0; transform: translateY(-10px) scale(0.96); transition-duration: 0.1s; transition-delay: 0s !important; }

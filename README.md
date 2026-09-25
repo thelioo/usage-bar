@@ -1,0 +1,45 @@
+<div align="center">
+
+<img src="design/icon.png" width="112" alt="Usage Bar icon" />
+
+# Usage Bar
+
+Your Claude Code and Codex plan limits, in a Dynamic Island at the top of your screen.
+
+<img src="design/compact.png" alt="Usage Bar collapsed" />
+<img src="design/hero.png" alt="Usage Bar expanded" />
+
+</div>
+
+## Features
+
+- **No sign-in**: reads the credentials Claude Code and Codex already saved.
+- **Windows + WSL**: finds accounts in your Windows profile and in every WSL distro.
+- **At a glance**: session and weekly limits, reset times, credits.
+- **Stays out of the way**: hover to expand; clicks outside the island pass through.
+- **Speaks your language**: follows the system language (10 languages, English fallback).
+
+## Build
+
+Cross-compiled for Windows from WSL/Linux:
+
+```bash
+rustup target add x86_64-pc-windows-msvc
+cargo install --locked cargo-xwin
+sudo apt install -y nsis lld llvm clang
+pnpm install
+pnpm tauri build --runner cargo-xwin --target x86_64-pc-windows-msvc --no-bundle
+```
+
+The app is at `src-tauri/target/x86_64-pc-windows-msvc/release/usage-bar.exe`.
+
+> [!NOTE]
+> Usage Bar never refreshes tokens, so it can't log you out of your CLI. If a token expires, open `claude` or `codex` once.
+
+## Releases
+
+Every push to `main` builds on GitHub Actions and publishes a release (`v0.1.<run>`) with the installer, the MSI and the standalone `.exe`.
+
+## License
+
+[GPL-3.0](LICENSE). Use it, change it, share it; derivative works must stay open source under the same license.
