@@ -2,11 +2,14 @@ pub mod claude;
 pub mod codex;
 
 use crate::model::AccountUsage;
+use crate::settings::Providers;
 use crate::sources::Source;
 
-pub async fn fetch_all(client: &reqwest::Client, sources: &[Source]) -> Vec<AccountUsage> {
-    let claude = futures::future::join_all(sources.iter().map(|s| claude::fetch(client, s)));
-    let codex = futures::future::join_all(sources.iter().map(|s| codex::fetch(client, s)));
+pub async fn fetch_all(client: &reqwest::Client, sources: &[Source], enabled: &Providers) -> Vec<AccountUsage> {
+    let claude_sources = if enabled.claude { sources } else { &[] };
+    let codex_sources = if enabled.codex { sources } else { &[] };
+    let claude = futures::future::join_all(claude_sources.iter().map(|s| claude::fetch(client, s)));
+    let codex = futures::future::join_all(codex_sources.iter().map(|s| codex::fetch(client, s)));
     let (claude, codex) = futures::join!(claude, codex);
     dedupe(claude.into_iter().chain(codex).flatten().collect())
 }

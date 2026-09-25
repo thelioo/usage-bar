@@ -1,77 +1,39 @@
+mod dock;
+mod island;
 mod model;
+mod panel;
 mod providers;
+mod settings;
 mod sources;
 
+use std::collections::HashMap;
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+use serde::Serialize;
 use tauri::menu::{Menu, MenuItem};
-use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, WebviewWindow, Wry};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent, Wry};
+use tauri_plugin_autostart::ManagerExt;
 
 use model::Snapshot;
+use settings::{DisplayMode, Settings};
 
-const REFRESH_EVERY: Duration = Duration::from_secs(5 * 60);
-const WINDOW_W: f64 = 440.0;
-const WINDOW_H: f64 = 600.0;
-const HOVER_POLL: Duration = Duration::from_millis(16);
+const SETTINGS_LABEL: &str = "settings";
+const MENU_IDS: [&str; 4] = ["show", "refresh", "settings", "quit"];
 
-/// Live island geometry in CSS pixels relative to the window, reported by the frontend
-/// every frame while it animates. The island hangs from the top edge (y = 0).
-#[derive(Default, Clone, Copy, serde::Deserialize)]
-struct Shape {
-    x: f64,
-    w: f64,
-    h: f64,
-    /// Radius of the two bottom corners.
-    radius: f64,
-    /// Size of the concave "ears" that join the island to the screen edge.
-    ear: f64,
-}
-
-impl Shape {
-    /// Exact hit test against the drawn shape: rounded bottom corners and concave ears.
-    fn contains(&self, px: f64, py: f64) -> bool {
-        let (left, right) = (self.x, self.x + self.w);
-        if py < 0.0 || py > self.h {
-            return false;
-        }
-        if px >= left && px <= right {
-            let r = self.radius.min(self.w / 2.0).min(self.h);
-            let cy = self.h - r;
-            if py <= cy {
-                return true;
-            }
-            let cx = if px < left + r {
-                left + r
-            } else if px > right - r {
-                right - r
-            } else {
-                return true;
-            };
-            return (px - cx).hypot(py - cy) <= r;
-        }
-        // Ears: black outside a circle centered at the ear's bottom outer corner.
-        let e = self.ear;
-        if py > e {
-            return false;
-        }
-        let cx = if px >= left - e && px < left {
-            left - e
-        } else if px > right && px <= right + e {
-            right + e
-        } else {
-            return false;
-        };
-        (px - cx).hypot(py - e) >= e
-    }
-}
-
-#[derive(Default)]
-struct AppState {
+pub struct AppState {
     snapshot: Mutex<Snapshot>,
-    hit: Mutex<Shape>,
-    tray_items: Mutex<Option<(MenuItem<Wry>, MenuItem<Wry>, MenuItem<Wry>)>>,
+    settings: Mutex<Settings>,
+    hit: Mutex<island::Shape>,
+    tray_items: Mutex<Vec<MenuItem<Wry>>>,
+    /// Physical center of the tray icon from the last click.
+    tray_anchor: Mutex<Option<(f64, f64)>>,
+    panel_height: Mutex<f64>,
+    panel_hidden_at: Mutex<Option<Instant>>,
+    /// Content width of the taskbar widget, in CSS px.
+    dock_width: Mutex<f64>,
+    dragging: Mutex<bool>,
 }
 
 #[tauri::command]
@@ -84,82 +46,156 @@ async fn refresh(app: AppHandle) -> Snapshot {
     do_refresh(&app).await
 }
 
-/// Tray menu labels come from the frontend, which owns the translations.
 #[tauri::command]
-fn set_tray_labels(state: tauri::State<AppState>, toggle: String, refresh: String, quit: String) {
-    if let Some(items) = state.tray_items.lock().unwrap().as_ref() {
-        let _ = items.0.set_text(toggle);
-        let _ = items.1.set_text(refresh);
-        let _ = items.2.set_text(quit);
-    }
+fn get_settings(state: tauri::State<AppState>) -> Settings {
+    state.settings.lock().unwrap().clone()
 }
 
 #[tauri::command]
-fn set_hit_shape(state: tauri::State<AppState>, shape: Shape) {
+async fn save_settings(app: AppHandle, settings: Settings) -> Result<(), String> {
+    settings::save(&settings)?;
+    let previous = std::mem::replace(&mut *app.state::<AppState>().settings.lock().unwrap(), settings.clone());
+    apply_settings(&app);
+    let providers_changed = previous.providers.claude != settings.providers.claude
+        || previous.providers.codex != settings.providers.codex;
+    if providers_changed {
+        do_refresh(&app).await;
+    }
+    Ok(())
+}
+
+#[derive(Serialize)]
+struct MonitorInfo {
+    name: String,
+    width: u32,
+    height: u32,
+    primary: bool,
+}
+
+#[tauri::command]
+fn list_monitors(app: AppHandle) -> Vec<MonitorInfo> {
+    let primary = app.primary_monitor().ok().flatten().and_then(|m| m.name().cloned());
+    app.available_monitors()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|m| {
+            let name = m.name()?.clone();
+            Some(MonitorInfo {
+                primary: primary.as_ref() == Some(&name),
+                width: m.size().width,
+                height: m.size().height,
+                name,
+            })
+        })
+        .collect()
+}
+
+#[tauri::command]
+fn open_settings(app: AppHandle) {
+    show_settings(&app);
+}
+
+#[tauri::command]
+fn set_panel_height(app: AppHandle, height: f64) {
+    *app.state::<AppState>().panel_height.lock().unwrap() = height;
+    panel::place(&app);
+}
+
+#[tauri::command]
+fn start_drag(app: AppHandle, width: f64) {
+    dock::start_drag(&app, width);
+}
+
+#[tauri::command]
+fn set_dock_width(app: AppHandle, width: f64) {
+    *app.state::<AppState>().dock_width.lock().unwrap() = width;
+}
+
+#[tauri::command]
+fn dock_clicked(app: AppHandle) {
+    if let Some(w) = app.get_webview_window(dock::LABEL) {
+        if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
+            *app.state::<AppState>().tray_anchor.lock().unwrap() = Some((
+                pos.x as f64 + size.width as f64 / 2.0,
+                pos.y as f64 + size.height as f64 / 2.0,
+            ));
+        }
+    }
+    panel::toggle(&app);
+}
+
+#[tauri::command]
+fn taskbar_theme() -> &'static str {
+    if dock::taskbar_is_light() { "light" } else { "dark" }
+}
+
+#[tauri::command]
+fn set_hit_shape(state: tauri::State<AppState>, shape: island::Shape) {
     *state.hit.lock().unwrap() = shape;
 }
 
-/// The window is a fixed transparent canvas glued to the top edge of the monitor.
-fn place_window(window: &WebviewWindow) {
-    let _ = window.set_size(LogicalSize::new(WINDOW_W, WINDOW_H));
-    let monitor = window
-        .current_monitor()
-        .ok()
-        .flatten()
-        .or_else(|| window.primary_monitor().ok().flatten());
-    if let Some(m) = monitor {
-        let scale = m.scale_factor();
-        let x = m.position().x as f64 + (m.size().width as f64 - WINDOW_W * scale) / 2.0;
-        let y = m.position().y as f64;
-        let _ = window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
-    }
-}
-
-/// Keeps the island visible while Aero Peek previews a window from the taskbar.
-#[cfg(windows)]
-fn exclude_from_peek(window: &WebviewWindow) {
-    use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_EXCLUDED_FROM_PEEK};
-    let Ok(hwnd) = window.hwnd() else { return };
-    let value: i32 = 1;
-    unsafe {
-        DwmSetWindowAttribute(
-            hwnd.0 as _,
-            DWMWA_EXCLUDED_FROM_PEEK as u32,
-            &value as *const i32 as *const _,
-            std::mem::size_of::<i32>() as u32,
-        );
-    }
-}
-
-/// Transparent pixels would still swallow clicks, so the window ignores the mouse
-/// unless the cursor is over the island; hover changes are forwarded to the frontend.
-fn track_hover(app: AppHandle) {
-    let mut hovered = false;
-    let _ = app.get_webview_window("main").map(|w| w.set_ignore_cursor_events(true));
-    loop {
-        std::thread::sleep(HOVER_POLL);
-        let Some(win) = app.get_webview_window("main") else { continue };
-        if !win.is_visible().unwrap_or(false) {
-            continue;
+/// Tray menu labels come from the frontend, which owns the translations.
+#[tauri::command]
+fn set_tray_labels(state: tauri::State<AppState>, labels: HashMap<String, String>) {
+    for item in state.tray_items.lock().unwrap().iter() {
+        if let Some(text) = labels.get(item.id().as_ref()) {
+            let _ = item.set_text(text);
         }
-        let (Ok(cursor), Ok(pos), Ok(scale)) =
-            (app.cursor_position(), win.outer_position(), win.scale_factor())
-        else {
-            continue;
-        };
-        let shape = *app.state::<AppState>().hit.lock().unwrap();
-        let x = (cursor.x - pos.x as f64) / scale;
-        let y = (cursor.y - pos.y as f64) / scale;
-        let inside = shape.contains(x, y);
-        if inside != hovered {
-            hovered = inside;
-            let _ = win.set_ignore_cursor_events(!inside);
-            let _ = app.emit("island-hover", inside);
+    }
+}
+
+fn show_settings(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window(SETTINGS_LABEL) {
+        let _ = w.show();
+        let _ = w.unminimize();
+        let _ = w.set_focus();
+    }
+}
+
+/// Shows the right window for the display mode, on the chosen monitor.
+pub(crate) fn apply_settings(app: &AppHandle) {
+    let settings = app.state::<AppState>().settings.lock().unwrap().clone();
+    if let Some(main) = app.get_webview_window(island::LABEL) {
+        if settings.mode == DisplayMode::Island {
+            if let Some(m) = island::target_monitor(app, settings.monitor.as_deref()) {
+                island::place(&main, &m, settings.anchor);
+            }
+            let _ = main.show();
+            if let Some(p) = app.get_webview_window(panel::LABEL) {
+                let _ = p.hide();
+            }
+        } else {
+            let _ = main.hide();
+        }
+    }
+    if settings.mode == DisplayMode::Taskbar {
+        dock::show_docked(app);
+    } else {
+        dock::hide(app);
+    }
+    let autolaunch = app.autolaunch();
+    if autolaunch.is_enabled().unwrap_or(false) != settings.launch_at_login {
+        let _ = if settings.launch_at_login { autolaunch.enable() } else { autolaunch.disable() };
+    }
+    let _ = app.emit("settings-changed", &settings);
+}
+
+fn show_usage(app: &AppHandle) {
+    let mode = app.state::<AppState>().settings.lock().unwrap().mode;
+    match mode {
+        DisplayMode::Tray => panel::toggle(app),
+        DisplayMode::Taskbar => dock_clicked(app.clone()),
+        DisplayMode::Island => {
+            if let Some(w) = app.get_webview_window(island::LABEL) {
+                let visible = w.is_visible().unwrap_or(false);
+                let _ = if visible { w.hide() } else { w.show() };
+            }
         }
     }
 }
 
 async fn do_refresh(app: &AppHandle) -> Snapshot {
+    let enabled = app.state::<AppState>().settings.lock().unwrap().providers.clone();
     let found = tauri::async_runtime::spawn_blocking(sources::discover)
         .await
         .unwrap_or_default();
@@ -168,7 +204,7 @@ async fn do_refresh(app: &AppHandle) -> Snapshot {
         .build()
         .expect("http client");
     let snapshot = Snapshot {
-        accounts: providers::fetch_all(&client, &found).await,
+        accounts: providers::fetch_all(&client, &found, &enabled).await,
         updated_at: Some(chrono::Utc::now()),
     };
     *app.state::<AppState>().snapshot.lock().unwrap() = snapshot.clone();
@@ -176,57 +212,133 @@ async fn do_refresh(app: &AppHandle) -> Snapshot {
     snapshot
 }
 
-pub fn run() {
-    tauri::Builder::default()
-        .manage(AppState::default())
-        .invoke_handler(tauri::generate_handler![get_usage, refresh, set_hit_shape, set_tray_labels])
-        .setup(|app| {
-            let toggle = MenuItem::with_id(app, "toggle", "Show/hide island", true, None::<&str>)?;
-            let refresh_item = MenuItem::with_id(app, "refresh", "Refresh", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&toggle, &refresh_item, &quit_item])?;
-            *app.state::<AppState>().tray_items.lock().unwrap() =
-                Some((toggle.clone(), refresh_item.clone(), quit_item.clone()));
+/// Refreshes on the interval from settings, re-reading it so changes apply without a restart.
+async fn refresh_loop(app: AppHandle) {
+    loop {
+        do_refresh(&app).await;
+        let started = Instant::now();
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            let minutes = app.state::<AppState>().settings.lock().unwrap().refresh_minutes.max(1);
+            if started.elapsed() >= Duration::from_secs(minutes as u64 * 60) {
+                break;
+            }
+        }
+    }
+}
 
-            TrayIconBuilder::new()
+pub fn run() {
+    // Managed before the builder runs: config windows load (and call commands) before `setup`.
+    let state = AppState {
+        snapshot: Mutex::default(),
+        settings: Mutex::new(settings::load()),
+        hit: Mutex::default(),
+        tray_items: Mutex::default(),
+        tray_anchor: Mutex::default(),
+        panel_height: Mutex::new(320.0),
+        panel_hidden_at: Mutex::default(),
+        dock_width: Mutex::new(160.0),
+        dragging: Mutex::default(),
+    };
+    tauri::Builder::default()
+        .manage(state)
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .invoke_handler(tauri::generate_handler![
+            get_usage,
+            refresh,
+            get_settings,
+            save_settings,
+            list_monitors,
+            open_settings,
+            set_panel_height,
+            set_hit_shape,
+            set_tray_labels,
+            start_drag,
+            set_dock_width,
+            dock_clicked,
+            taskbar_theme
+        ])
+        .setup(|app| {
+            let handle = app.handle();
+
+            let defaults = ["Show usage", "Refresh", "Settings…", "Quit"];
+            let items = MENU_IDS
+                .iter()
+                .zip(defaults)
+                .map(|(id, text)| MenuItem::with_id(app, *id, text, true, None::<&str>))
+                .collect::<Result<Vec<_>, _>>()?;
+            let refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> =
+                items.iter().map(|i| i as &dyn tauri::menu::IsMenuItem<Wry>).collect();
+            let menu = Menu::with_items(app, &refs)?;
+            *app.state::<AppState>().tray_items.lock().unwrap() = items;
+
+            TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
                 .tooltip("Usage Bar")
                 .menu(&menu)
+                .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "toggle" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            if w.is_visible().unwrap_or(false) {
-                                let _ = w.hide();
-                            } else {
-                                let _ = w.show();
-                            }
-                        }
-                    }
+                    "show" => show_usage(app),
                     "refresh" => {
                         let app = app.clone();
                         tauri::async_runtime::spawn(async move { do_refresh(&app).await });
                     }
+                    "settings" => show_settings(app),
                     "quit" => app.exit(0),
                     _ => {}
                 })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        rect,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        let pos = rect.position.to_physical::<f64>(1.0);
+                        let size = rect.size.to_physical::<f64>(1.0);
+                        *app.state::<AppState>().tray_anchor.lock().unwrap() =
+                            Some((pos.x + size.width / 2.0, pos.y + size.height / 2.0));
+                        show_usage(app);
+                    }
+                })
                 .build(app)?;
 
-            if let Some(win) = app.get_webview_window("main") {
-                place_window(&win);
-                #[cfg(windows)]
-                exclude_from_peek(&win);
-                let _ = win.show();
-            }
-            let handle = app.handle().clone();
-            std::thread::spawn(move || track_hover(handle));
-
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                loop {
-                    do_refresh(&handle).await;
-                    tokio::time::sleep(REFRESH_EVERY).await;
+            for label in [island::LABEL, dock::LABEL, dock::OVERLAY] {
+                if let Some(win) = app.get_webview_window(label) {
+                    #[cfg(windows)]
+                    island::exclude_from_peek(&win);
                 }
-            });
+            }
+            if let Some(win) = app.get_webview_window(panel::LABEL) {
+                let handle = handle.clone();
+                win.on_window_event(move |e| {
+                    if let WindowEvent::Focused(false) = e {
+                        panel::on_blur(&handle);
+                    }
+                });
+            }
+            if let Some(win) = app.get_webview_window(SETTINGS_LABEL) {
+                let w = win.clone();
+                win.on_window_event(move |e| {
+                    if let WindowEvent::CloseRequested { api, .. } = e {
+                        api.prevent_close();
+                        let _ = w.hide();
+                    }
+                });
+            }
+
+            apply_settings(handle);
+
+            let h = handle.clone();
+            std::thread::spawn(move || island::track_hover(h));
+            let h = handle.clone();
+            std::thread::spawn(move || dock::keep_docked(h));
+            tauri::async_runtime::spawn(refresh_loop(handle.clone()));
             Ok(())
         })
         .run(tauri::generate_context!())

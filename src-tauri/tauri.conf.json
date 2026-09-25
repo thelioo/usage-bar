@@ -12,7 +12,38 @@
       {
         "label": "main",
         "title": "Usage Bar",
-        "width": 440,
+        "url": "index.html",
+        "width": 600,
+        "height": 700,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "resizable": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "focus": false
+      },
+      {
+        "label": "dock",
+        "title": "Usage Bar",
+        "url": "index.html",
+        "width": 160,
+        "height": 48,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "resizable": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "focus": false
+      },
+      {
+        "label": "overlay",
+        "title": "Usage Bar",
+        "url": "overlay.html",
+        "width": 800,
         "height": 600,
         "visible": false,
         "decorations": false,
@@ -22,6 +53,32 @@
         "skipTaskbar": true,
         "alwaysOnTop": true,
         "focus": false
+      },
+      {
+        "label": "panel",
+        "title": "Usage Bar",
+        "url": "index.html",
+        "width": 380,
+        "height": 320,
+        "visible": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "resizable": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true
+      },
+      {
+        "label": "settings",
+        "title": "Usage Bar",
+        "url": "settings.html",
+        "width": 540,
+        "height": 640,
+        "visible": false,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "center": true
       }
     ],
     "security": {

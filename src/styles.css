@@ -99,17 +99,18 @@ body {
 .ring .fg { stroke-linecap: round; transition: stroke-dasharray 0.8s var(--content); }
 
 #details {
-  position: absolute; top: 0; left: 50%; width: 380px; max-height: 580px; overflow-y: auto;
+  position: absolute; top: 0; left: 50%;
+  --tx: -50%; --ty: 0px; width: 380px; max-height: 580px; overflow-y: auto;
   padding: 16px 20px 18px;
   opacity: 0; filter: blur(10px);
-  transform: translateX(-50%) scale(0.8);
-  transform-origin: top center;
+  transform: translate(var(--tx), var(--ty)) scale(0.8);
+  transform-origin: var(--origin, top center);
   transition: opacity 0.1s var(--fade), filter 0.12s var(--fade), transform var(--close-dur) var(--close);
   pointer-events: none;
 }
 #details::-webkit-scrollbar { width: 0; }
 #island.expanded #details {
-  opacity: 1; filter: none; transform: translateX(-50%);
+  opacity: 1; filter: none; transform: translate(var(--tx), var(--ty));
   pointer-events: auto;
   transition: opacity 0.25s var(--fade) 0.06s, filter 0.3s var(--fade) 0.04s, transform var(--content-dur) var(--content);
 }
@@ -117,13 +118,13 @@ body {
 header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 header .title { font-weight: 600; font-size: 13px; }
 header #updated { margin-left: auto; font-size: 11px; }
-#refresh {
+#refresh, .icon-btn {
   display: grid; place-items: center; width: 24px; height: 24px;
   border: 0; border-radius: 12px; background: var(--track); color: var(--text); cursor: pointer;
   transition: background 0.15s, transform 0.2s var(--fade);
 }
-#refresh:hover { background: #3a3a3c; }
-#refresh:active { transform: scale(0.9); }
+#refresh:hover, .icon-btn:hover { background: #3a3a3c; }
+#refresh:active, .icon-btn:active { transform: scale(0.9); }
 #refresh.spin svg { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -151,3 +152,82 @@ header #updated { margin-left: auto; font-size: 11px; }
 /* Stagger the sections in after the island opens. */
 #accounts > section { transition: opacity 0.3s var(--fade), transform var(--content-dur) var(--content); }
 #island:not(.expanded) #accounts > section { opacity: 0; transform: translateY(-10px) scale(0.96); transition-duration: 0.1s; transition-delay: 0s !important; }
+
+/* Tray popover: the expanded card, free-standing, no ears. */
+body.panel #island {
+  position: static; transform: none; width: 100% !important; height: auto !important;
+  --radius: 18px; border-radius: var(--radius);
+  transition: none;
+}
+body.panel #island::before, body.panel #island::after, body.panel #compact { display: none; }
+body.panel #clip { position: static; }
+body.panel #details { position: static; transform: none; width: 100%; max-height: none; }
+body.panel #island #details { animation: panel-in var(--content-dur) var(--content); }
+@keyframes panel-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+
+/* Taskbar widget: transparent so the real taskbar shows through, like a native tray item. */
+body.dock { --dock-text: #fff; --dock-dim: rgba(255, 255, 255, 0.72); --dock-hover: rgba(255, 255, 255, 0.08); }
+body.dock[data-taskbar="light"] { --dock-text: #1b1b1b; --dock-dim: rgba(0, 0, 0, 0.62); --dock-hover: rgba(0, 0, 0, 0.05); --track: rgba(0, 0, 0, 0.12); }
+body.dock #island {
+  position: absolute; inset: 4px 0; transform: none; width: auto !important; height: auto !important;
+  background: transparent; border-radius: 6px; transition: background 0.15s;
+}
+body.dock #island:hover { background: var(--dock-hover); }
+body.dock #island::before, body.dock #island::after, body.dock #details { display: none; }
+body.dock #compact { height: 100%; color: var(--dock-text); gap: 12px; padding: 0 10px; }
+body.dock .chip .name { color: var(--dock-dim); }
+
+/* While dragging, the widget becomes the island's pill; it previews where it will land. */
+body.dock.floating #island {
+  inset: 100px; border-radius: 16px; background: var(--island);
+  will-change: transform, filter, box-shadow;
+}
+body.dock.floating #compact { color: var(--text); padding: 0 16px; }
+body.dock.floating .chip .name { color: var(--dim); }
+/* Drop-zone hint: a soft glow instead of a hard outline. */
+body.dock.floating #clip { transition: box-shadow 0.25s var(--fade); }
+body.dock.floating[data-zone="taskbar"] #clip,
+body.dock.floating[data-zone="top"] #clip { box-shadow: inset 0 0 0 1.5px rgba(48, 209, 88, 0.9), inset 0 0 14px rgba(48, 209, 88, 0.35); }
+
+/* Drag affordance: grab cursor and an iOS-style grabber under the card. */
+#island { cursor: grab; }
+#island:active { cursor: grabbing; }
+#island button { cursor: pointer; }
+.grabber { width: 36px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.16); margin: 14px auto -4px; }
+body.panel .grabber { display: none; }
+
+
+/*
+ * Island window: the shape is drawn by pieces (see shape.js). #island only holds the content,
+ * sized to the shape's bounding box. Everything springs between collapsed and expanded.
+ */
+@property --s { syntax: "<length>"; inherits: false; initial-value: 0px; }
+body.main #stage { position: absolute; inset: 0; will-change: transform; }
+/* Promote the animated layers so springs run on the compositor. */
+#details, #compact, #compact-v { will-change: transform, opacity; }
+/* In the island window a JS spring drives every frame (see main.js), so no CSS transitions. */
+body.main .piece { position: absolute; background: var(--island); }
+body.main .piece, body.main #island, body.main #compact, body.main #compact-v, body.main #details,
+body.main #island.expanded #compact, body.main #island.expanded #compact-v, body.main #island.expanded #details {
+  transition: none;
+}
+body.main .piece.ear { width: var(--s); height: var(--s); }
+body.main { --spring: var(--close); --spring-dur: var(--close-dur); }
+body.main.expanded { --spring: var(--open); --spring-dur: var(--open-dur); }
+body.main #island { background: transparent; border-radius: 0; transform: none; box-shadow: none; }
+body.main #island::before, body.main #island::after { display: none; }
+body.main #clip { border-radius: 0; }
+body.main #compact, body.main #compact-v { transform: none; left: 0; top: 0; }
+
+/* Vertical bar content: chips run down the edge, text turned on its side. */
+#compact-v {
+  position: absolute; display: flex; align-items: center; gap: 14px; white-space: nowrap;
+  writing-mode: vertical-rl; padding: 14px 0; width: 32px;
+  transition: opacity 0.22s var(--fade) 0.08s, filter 0.3s var(--fade) 0.05s, transform 0.4s var(--fade);
+}
+#compact-v:empty { display: none; }
+body:not(.main) #compact-v { display: none; }
+body.main #compact:empty { display: none; }
+
+/* While dragging, the pill stands in for the cursor. */
+body.dock.floating, body.dock.floating *, body.dragging, body.dragging * { cursor: none !important; }

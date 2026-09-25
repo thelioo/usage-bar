@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Usage Bar</title>
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <header>
+    <img src="icon.png" alt="" width="36" height="36" />
+    <h1 data-i18n="settings"></h1>
+  </header>
+
+  <h2 data-i18n="sDisplay"></h2>
+  <section class="card">
+    <div class="row">
+      <label data-i18n="sMode"></label>
+      <div class="segmented" data-key="mode">
+        <button value="island" data-i18n="modeIsland"></button>
+        <button value="taskbar" data-i18n="modeTaskbar"></button>
+        <button value="tray" data-i18n="modeTray"></button>
+      </div>
+    </div>
+    <div class="row island-only">
+      <label for="anchor" data-i18n="sPosition"></label>
+      <select id="anchor"></select>
+    </div>
+    <div class="row island-only">
+      <label for="monitor" data-i18n="sMonitor"></label>
+      <select id="monitor"></select>
+    </div>
+    <div class="row island-only">
+      <label data-i18n="sExpand"></label>
+      <div class="segmented" data-key="expand_on">
+        <button value="hover" data-i18n="expandHover"></button>
+        <button value="click" data-i18n="expandClick"></button>
+      </div>
+    </div>
+  </section>
+
+  <p class="hint" data-i18n="dragHint"></p>
+
+  <h2 data-i18n="sData"></h2>
+  <section class="card">
+    <div class="row">
+      <label for="refresh" data-i18n="sRefresh"></label>
+      <select id="refresh"></select>
+    </div>
+    <div class="row">
+      <label for="claude">Claude</label>
+      <input type="checkbox" class="switch" id="claude" />
+    </div>
+    <div class="row">
+      <label for="codex">Codex</label>
+      <input type="checkbox" class="switch" id="codex" />
+    </div>
+  </section>
+
+  <h2 data-i18n="sGeneral"></h2>
+  <section class="card">
+    <div class="row">
+      <label for="language" data-i18n="sLanguage"></label>
+      <select id="language"></select>
+    </div>
+    <div class="row">
+      <label for="startup" data-i18n="sStartup"></label>
+      <input type="checkbox" class="switch" id="startup" />
+    </div>
+  </section>
+
+  <script type="module" src="settings.js"></script>
+</body>
+</html>
