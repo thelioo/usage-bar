@@ -15,7 +15,7 @@ Your Claude Code and Codex plan limits, in a Dynamic Island at the top of your s
 - **No sign-in**: reads the credentials Claude Code and Codex already saved.
 - **Windows + WSL**: finds accounts in your Windows profile and in every WSL distro.
 - **At a glance**: session and weekly limits, reset times, credits.
-- **Goes where you want it**: drag it to the top, the bottom, a side or the taskbar, on any monitor, or keep it as a tray icon.
+- **Goes where you want it**: drag it to the top, a side or the taskbar, on any monitor, or keep it as a tray icon.
 - **Stays out of the way**: hover to expand; clicks outside the island pass through.
 - **Speaks your language**: follows the system language (10 languages, English fallback).
 

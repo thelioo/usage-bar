@@ -92,7 +92,7 @@ const chip = (a) => {
   return `<span class="chip"><span class="name">${esc(a.provider)}</span>${value}</span>`;
 };
 
-/** Chips run across the top/bottom bar or down a side bar. */
+/** Chips run across the top bar or down a side bar. */
 function renderCompact(snap) {
   let items;
   if (!snap.updated_at) items = [`<span class="dim">${t("loading")}</span>`];

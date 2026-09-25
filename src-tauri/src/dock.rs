@@ -214,8 +214,8 @@ struct Slot {
 /// Every drop slot on `monitor`, in physical px.
 fn slots(monitor: &Monitor, pill_w: f64) -> Vec<(Target, (f64, f64, f64, f64))> {
     let s = monitor.scale_factor();
-    // Slot sizes follow the island's shape there: a bar across the top and bottom, a
-    // vertical bar on the sides.
+    // Slot sizes follow the island's shape there: a bar across the top, a vertical bar on
+    // the sides.
     let t = PILL_H * s;
     let (w, h) = (pill_w * s, t);
     let (side_w, side_h) = (t, (pill_w * 0.8).max(120.0) * s);
@@ -231,7 +231,6 @@ fn slots(monitor: &Monitor, pill_w: f64) -> Vec<(Target, (f64, f64, f64, f64))> 
                 Anchor::Top => (mx + (mw - w) / 2.0, my, w, h),
                 Anchor::Left => (ax, mid, side_w, side_h),
                 Anchor::Right => (ar - side_w, mid, side_w, side_h),
-                Anchor::Bottom => (ax + (ar - ax - w) / 2.0, ab - h, w, h),
             };
             (Target::Anchor(a), rect)
         })

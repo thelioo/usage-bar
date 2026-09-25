@@ -1,10 +1,8 @@
 // Island geometry. The island is drawn from pieces: a rounded body ("arm") plus concave
 // fillets ("ears") where it meets a screen edge. Each anchor adapts the shape:
-//   top    – a notch hanging from the top edge
-//   bottom – the same notch, sitting on the bottom of the work area
-//   sides  – a vertical bar against the left/right edge
-// Expanding grows the shape into the card. Layouts are written once for the top and right
-// anchors; bottom and left are mirror images.
+//   top   – a notch hanging from the top edge
+//   sides – a vertical bar against the left/right edge
+// Expanding grows the shape into the card. The left side is a mirror image of the right.
 
 const T = 32; // bar thickness when collapsed
 const CARD_W = 380;
@@ -17,7 +15,6 @@ const KIND = {
   top: ["top", false, false],
   left: ["side", true, false],
   right: ["side", false, false],
-  bottom: ["top", false, true],
 };
 
 /**

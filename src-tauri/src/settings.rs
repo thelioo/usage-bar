@@ -26,12 +26,10 @@ pub enum Anchor {
     Top,
     Left,
     Right,
-    /// Sitting on the bottom of the work area, just above the taskbar.
-    Bottom,
 }
 
 impl Anchor {
-    pub const ALL: [Anchor; 4] = [Anchor::Top, Anchor::Left, Anchor::Right, Anchor::Bottom];
+    pub const ALL: [Anchor; 3] = [Anchor::Top, Anchor::Left, Anchor::Right];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,7 +85,7 @@ impl Default for Settings {
 
 /// Same place as Tauri's app config dir, but usable before the app is built,
 /// so settings are ready before any window can ask for them.
-/// Anchors that no longer exist (older versions had corners) fall back to the top.
+/// Anchors that no longer exist (older versions had corners and a bottom) fall back to the top.
 fn lenient_anchor<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Anchor, D::Error> {
     let value = serde_json::Value::deserialize(d)?;
     Ok(serde_json::from_value(value).unwrap_or(Anchor::Top))
