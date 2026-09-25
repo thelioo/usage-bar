@@ -5,7 +5,7 @@
 <title>Usage Bar demo</title>
 <!--
   Scripted demo used to record design/demo.gif. It runs the real island (island.html loads
-  src/index.html's code) on a fake desktop and plays a timeline: hover, drag to a corner,
+  src/index.html's code) on a fake desktop and plays a timeline: hover, drag to the bottom,
   a side and the taskbar, then back to the top so the recording loops.
   Serve the repo root over HTTP (module scripts) and open /design/demo/.
 -->
@@ -106,24 +106,21 @@ $ghost.innerHTML = chips;
 $dock.innerHTML = chips;
 
 // Where the 600x700 island window sits for each anchor.
-const FRAME_AT = { top: [340, 0], top_left: [0, 0], top_right: [680, 0], right: [680, (WORK_H - 700) / 2], left: [0, (WORK_H - 700) / 2] };
+const FRAME_AT = { top: [340, 0], bottom: [340, WORK_H - 700], right: [680, (WORK_H - 700) / 2], left: [0, (WORK_H - 700) / 2] };
 
 // Drop slots (same outlines as src/overlay.html).
 const PILL = 210, T = 32;
 const SLOTS = [
   { id: "top", x: (W - PILL) / 2, y: 0, w: PILL, h: T },
-  { id: "top_left", x: 0, y: 0, w: 158, h: 112 }, { id: "top_right", x: W - 158, y: 0, w: 158, h: 112 },
+  { id: "bottom", x: (W - PILL) / 2, y: WORK_H - T, w: PILL, h: T },
   { id: "left", x: 0, y: (WORK_H - 168) / 2, w: 32, h: 168 }, { id: "right", x: W - 32, y: (WORK_H - 168) / 2, w: 32, h: 168 },
-  { id: "bottom_left", x: 0, y: WORK_H - 112, w: 158, h: 112 }, { id: "bottom_right", x: W - 158, y: WORK_H - 112, w: 158, h: 112 },
   { id: "taskbar", x: 876, y: WORK_H, w: PILL, h: 48 },
 ];
 function outline(id, w, h) {
   if (id === "taskbar") return { d: `M8 0 H${w - 8} A8 8 0 0 1 ${w} 8 V${h - 8} A8 8 0 0 1 ${w - 8} ${h} H8 A8 8 0 0 1 0 ${h - 8} V8 A8 8 0 0 1 8 0 Z`, flip: "" };
-  if (id === "top") return { d: `M0 0 H${w} V${h - 14} A14 14 0 0 1 ${w - 14} ${h} H14 A14 14 0 0 1 0 ${h - 14} Z`, flip: "" };
+  if (id === "top" || id === "bottom") return { d: `M0 0 H${w} V${h - 14} A14 14 0 0 1 ${w - 14} ${h} H14 A14 14 0 0 1 0 ${h - 14} Z`, flip: id === "bottom" ? "scale(1,-1)" : "" };
   if (id === "left" || id === "right") return { d: `M${w} 0 V${h} H14 A14 14 0 0 1 0 ${h - 14} V14 A14 14 0 0 1 14 0 Z`, flip: id === "left" ? "scale(-1,1)" : "" };
-  const R = 16, f = 8;
-  const d = `M0 0 H${w} V${h} H${w - T + R} A${R} ${R} 0 0 1 ${w - T} ${h - R} V${T + f} A${f} ${f} 0 0 0 ${w - T - f} ${T} H${R} A${R} ${R} 0 0 1 0 ${T - R} Z`;
-  return { d, flip: { top_left: "scale(-1,1)", bottom_right: "scale(1,-1)", bottom_left: "scale(-1,-1)" }[id] ?? "" };
+  return { d: "", flip: "" };
 }
 $slots.innerHTML = SLOTS.map((s, i) => {
   const { d, flip } = outline(s.id, s.w, s.h);
@@ -228,20 +225,20 @@ island().hover(false);
 await move(640, 360, 700);
 await sleep(500);
 
-// Drag to the top-right corner: the island becomes an L.
+// Drag to the bottom: the notch flips and opens upward.
 await move(640, 14, 700);
-await drag(1224, 40, 1300);
-showIsland("top_right");
+await drag(640, 658, 1300);
+showIsland("bottom");
 await sleep(1100);
-await move(1150, 60, 500);
+await move(640, 652, 400);
 island().hover(true);
 await sleep(2400);
 island().hover(false);
-await move(1000, 300, 600);
+await move(820, 360, 600);
 await sleep(400);
 
 // To the right edge: a vertical bar.
-await move(1210, 14, 600);
+await move(640, 656, 600);
 await drag(1262, 336, 1200);
 showIsland("right");
 await sleep(1300);

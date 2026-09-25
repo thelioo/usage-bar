@@ -24,24 +24,14 @@ pub enum DisplayMode {
 pub enum Anchor {
     /// Hanging from the top edge, like a notch.
     Top,
-    TopLeft,
-    TopRight,
     Left,
     Right,
-    BottomLeft,
-    BottomRight,
+    /// Sitting on the bottom of the work area, just above the taskbar.
+    Bottom,
 }
 
 impl Anchor {
-    pub const ALL: [Anchor; 7] = [
-        Anchor::Top,
-        Anchor::TopLeft,
-        Anchor::TopRight,
-        Anchor::Left,
-        Anchor::Right,
-        Anchor::BottomLeft,
-        Anchor::BottomRight,
-    ];
+    pub const ALL: [Anchor; 4] = [Anchor::Top, Anchor::Left, Anchor::Right, Anchor::Bottom];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +60,7 @@ pub struct Settings {
     pub mode: DisplayMode,
     /// Monitor name as reported by the OS; `None` follows the primary monitor.
     pub monitor: Option<String>,
+    #[serde(deserialize_with = "lenient_anchor")]
     pub anchor: Anchor,
     pub expand_on: ExpandOn,
     pub refresh_minutes: u32,
@@ -96,6 +87,12 @@ impl Default for Settings {
 
 /// Same place as Tauri's app config dir, but usable before the app is built,
 /// so settings are ready before any window can ask for them.
+/// Anchors that no longer exist (older versions had corners) fall back to the top.
+fn lenient_anchor<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Anchor, D::Error> {
+    let value = serde_json::Value::deserialize(d)?;
+    Ok(serde_json::from_value(value).unwrap_or(Anchor::Top))
+}
+
 fn path() -> Option<PathBuf> {
     dirs::config_dir().map(|d| d.join(IDENTIFIER).join("settings.json"))
 }

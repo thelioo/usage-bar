@@ -4,7 +4,7 @@ const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
 const REFRESH_OPTIONS = [1, 5, 15, 30];
-const ANCHORS = ["top", "top_left", "top_right", "left", "right", "bottom_left", "bottom_right"];
+const ANCHORS = ["top", "bottom", "left", "right"];
 const $ = (id) => document.getElementById(id);
 
 let settings;

@@ -92,17 +92,13 @@ pub fn place(window: &WebviewWindow, monitor: &Monitor, anchor: Anchor) {
     let wa = monitor.work_area();
     let (ax, ay) = (wa.position.x as f64, wa.position.y as f64);
     let (ar, ab) = (ax + wa.size.width as f64, ay + wa.size.height as f64);
-    let (left, right) = (ax, ar - w);
-    let (top, bottom) = (ay, ab - h);
     let middle = ay + (ab - ay) / 2.0 - h / 2.0;
+    let center = ax + (ar - ax) / 2.0 - w / 2.0;
     let (x, y) = match anchor {
         Anchor::Top => (mon.0 + (mon.2 - w) / 2.0, mon.1),
-        Anchor::TopLeft => (left, top),
-        Anchor::TopRight => (right, top),
-        Anchor::Left => (left, middle),
-        Anchor::Right => (right, middle),
-        Anchor::BottomLeft => (left, bottom),
-        Anchor::BottomRight => (right, bottom),
+        Anchor::Left => (ax, middle),
+        Anchor::Right => (ar - w, middle),
+        Anchor::Bottom => (center, ab - h),
     };
     let _ = window.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
     // Size after moving so it is computed with the target monitor's scale factor.

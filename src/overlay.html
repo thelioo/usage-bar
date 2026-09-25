@@ -24,26 +24,23 @@
 <body>
   <script>
     const { listen } = window.__TAURI__.event;
-    const T = 32;
     let active = null;
 
     /**
-     * Outline of each slot, matching the island's shape there. Written for the top, right and
-     * top-right anchors; the other sides and corners are mirror images.
+     * Outline of each slot, matching the island's shape there. Written for the top and right
+     * anchors; bottom and left are mirror images.
      */
     function outline(id, w, h) {
       if (id === "taskbar") return { d: roundRect(w, h, 8), flip: "" };
-      if (id === "top") return { d: `M0 0 H${w} V${h - 14} A14 14 0 0 1 ${w - 14} ${h} H14 A14 14 0 0 1 0 ${h - 14} Z`, flip: "" };
+      if (id === "top" || id === "bottom") {
+        const d = `M0 0 H${w} V${h - 14} A14 14 0 0 1 ${w - 14} ${h} H14 A14 14 0 0 1 0 ${h - 14} Z`;
+        return { d, flip: id === "bottom" ? "scale(1,-1)" : "" };
+      }
       if (id === "left" || id === "right") {
         const d = `M${w} 0 V${h} H14 A14 14 0 0 1 0 ${h - 14} V14 A14 14 0 0 1 14 0 Z`;
         return { d, flip: id === "left" ? "scale(-1,1)" : "" };
       }
-      // Corner L: a top arm and a side arm meeting in the corner, with a concave inner fillet.
-      const R = 16, f = 8;
-      const d = `M0 0 H${w} V${h} H${w - T + R} A${R} ${R} 0 0 1 ${w - T} ${h - R}` +
-        ` V${T + f} A${f} ${f} 0 0 0 ${w - T - f} ${T} H${R} A${R} ${R} 0 0 1 0 ${T - R} Z`;
-      const flip = { top_left: "scale(-1,1)", bottom_right: "scale(1,-1)", bottom_left: "scale(-1,-1)" }[id] ?? "";
-      return { d, flip };
+      return { d: roundRect(w, h, 14), flip: "" };
     }
     const roundRect = (w, h, r) =>
       `M${r} 0 H${w - r} A${r} ${r} 0 0 1 ${w} ${r} V${h - r} A${r} ${r} 0 0 1 ${w - r} ${h} H${r} A${r} ${r} 0 0 1 0 ${h - r} V${r} A${r} ${r} 0 0 1 ${r} 0 Z`;

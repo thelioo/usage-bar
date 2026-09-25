@@ -92,14 +92,14 @@ const chip = (a) => {
   return `<span class="chip"><span class="name">${esc(a.provider)}</span>${value}</span>`;
 };
 
-/** Chips go along the island's arms: across the top, down a side bar, or split over an L. */
+/** Chips run across the top/bottom bar or down a side bar. */
 function renderCompact(snap) {
   let items;
   if (!snap.updated_at) items = [`<span class="dim">${t("loading")}</span>`];
   else if (!snap.accounts.length) items = [`<span class="dim">${t("noAccounts")}</span>`];
   else items = snap.accounts.map(chip);
   const kind = IS_MAIN ? kindOf(anchor) : "top";
-  const split = kind === "top" ? items.length : kind === "side" ? 0 : Math.ceil(items.length / 2);
+  const split = kind === "side" ? 0 : items.length;
   $compact.innerHTML = items.slice(0, split).join("");
   $compactV.innerHTML = items.slice(split).join("");
 }

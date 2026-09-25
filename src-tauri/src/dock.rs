@@ -214,12 +214,11 @@ struct Slot {
 /// Every drop slot on `monitor`, in physical px.
 fn slots(monitor: &Monitor, pill_w: f64) -> Vec<(Target, (f64, f64, f64, f64))> {
     let s = monitor.scale_factor();
-    // Slot sizes follow the island's shape there: a bar across the top, a vertical bar on
-    // the sides, an L in the corners.
+    // Slot sizes follow the island's shape there: a bar across the top and bottom, a
+    // vertical bar on the sides.
     let t = PILL_H * s;
     let (w, h) = (pill_w * s, t);
     let (side_w, side_h) = (t, (pill_w * 0.8).max(120.0) * s);
-    let (corner_w, corner_h) = ((pill_w * 0.6).max(96.0) * s + t, t + 80.0 * s);
     let (mx, my, mw) = (monitor.position().x as f64, monitor.position().y as f64, monitor.size().width as f64);
     let wa = monitor.work_area();
     let (ax, ay) = (wa.position.x as f64, wa.position.y as f64);
@@ -232,10 +231,7 @@ fn slots(monitor: &Monitor, pill_w: f64) -> Vec<(Target, (f64, f64, f64, f64))> 
                 Anchor::Top => (mx + (mw - w) / 2.0, my, w, h),
                 Anchor::Left => (ax, mid, side_w, side_h),
                 Anchor::Right => (ar - side_w, mid, side_w, side_h),
-                Anchor::TopLeft => (ax, ay, corner_w, corner_h),
-                Anchor::TopRight => (ar - corner_w, ay, corner_w, corner_h),
-                Anchor::BottomLeft => (ax, ab - corner_h, corner_w, corner_h),
-                Anchor::BottomRight => (ar - corner_w, ab - corner_h, corner_w, corner_h),
+                Anchor::Bottom => (ax + (ar - ax - w) / 2.0, ab - h, w, h),
             };
             (Target::Anchor(a), rect)
         })

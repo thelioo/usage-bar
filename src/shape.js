@@ -1,30 +1,27 @@
-// Island geometry. The island is drawn as a union of pieces: one or two rounded "arms" plus
-// concave fillets ("ears") where it meets a screen edge. Each anchor adapts the shape:
+// Island geometry. The island is drawn from pieces: a rounded body ("arm") plus concave
+// fillets ("ears") where it meets a screen edge. Each anchor adapts the shape:
 //   top    – a notch hanging from the top edge
+//   bottom – the same notch, sitting on the bottom of the work area
 //   sides  – a vertical bar against the left/right edge
-//   corners – a Tetris-like L hugging both edges
-// Expanding grows the arms until their union is the card. Layouts are written once for the top,
-// right and top-right anchors; the others are mirror images.
+// Expanding grows the shape into the card. Layouts are written once for the top and right
+// anchors; bottom and left are mirror images.
 
 const T = 32; // bar thickness when collapsed
 const CARD_W = 380;
 const LOOK = {
-  compact: { radius: 12, cornerRadius: 16, ear: 8, fillet: 10 },
-  expanded: { radius: 30, cornerRadius: 30, ear: 14, fillet: 0 },
+  compact: { radius: 12, ear: 8 },
+  expanded: { radius: 30, ear: 14 },
 };
 
 const KIND = {
   top: ["top", false, false],
   left: ["side", true, false],
   right: ["side", false, false],
-  top_left: ["corner", true, false],
-  top_right: ["corner", false, false],
-  bottom_left: ["corner", true, true],
-  bottom_right: ["corner", false, true],
+  bottom: ["top", false, true],
 };
 
 /**
- * Canonical layout in window px for the top, right and top-right anchors.
+ * Canonical layout in window px for the top and right anchors.
  * `gw` is the horizontal content width, `gl` the vertical content length, `dh` the card height.
  */
 function canonical(kind, { expanded, gw, gl, dh }, W, H) {
@@ -44,41 +41,18 @@ function canonical(kind, { expanded, gw, gl, dh }, W, H) {
       card: ["center", "top"],
     };
   }
-  if (kind === "side") {
-    const w = expanded ? CARD_W : T;
-    const h = expanded ? dh : Math.max(120, gl);
-    const r = look.radius;
-    const y = (H - h) / 2;
-    return {
-      arms: [{ x: W - w, y, w, h, radii: [r, 0, 0, r] }],
-      ears: [{ x: W - e, y: y - e, s: e, c: "tl" }, { x: W - e, y: y + h, s: e, c: "bl" }],
-      h: null,
-      v: { x: W - T, y, w: T, h },
-      origin: [W, H / 2],
-      card: ["right", "center"],
-    };
-  }
-  // Corner: a top arm running left from the corner and a side arm running down.
-  const cw = expanded ? CARD_W : gw + T;
-  const ch = expanded ? dh : T + Math.max(56, gl);
-  const a = expanded ? ch : T; // top arm thickness
-  const b = expanded ? cw : T; // side arm thickness
-  const R = look.cornerRadius;
-  const f = look.fillet;
+  // Side: a vertical bar against the right edge.
+  const w = expanded ? CARD_W : T;
+  const h = expanded ? dh : Math.max(120, gl);
+  const r = look.radius;
+  const y = (H - h) / 2;
   return {
-    arms: [
-      { x: W - cw, y: 0, w: cw, h: a, radii: [0, 0, 0, R] },
-      { x: W - b, y: 0, w: b, h: ch, radii: [0, 0, 0, R] },
-    ],
-    ears: [
-      { x: W - cw - e, y: 0, s: e, c: "bl" },
-      { x: W - e, y: ch, s: e, c: "bl" },
-      { x: W - b - f, y: a, s: f, c: "bl" },
-    ],
-    h: { x: W - cw, y: 0, w: cw - T, h: T },
-    v: { x: W - T, y: T, w: T, h: ch - T },
-    origin: [W, 0],
-    card: ["right", "top"],
+    arms: [{ x: W - w, y, w, h, radii: [r, 0, 0, r] }],
+    ears: [{ x: W - e, y: y - e, s: e, c: "tl" }, { x: W - e, y: y + h, s: e, c: "bl" }],
+    h: null,
+    v: { x: W - T, y, w: T, h },
+    origin: [W, H / 2],
+    card: ["right", "center"],
   };
 }
 
