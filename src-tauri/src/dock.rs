@@ -30,7 +30,7 @@ pub struct Rect {
 }
 
 impl Rect {
-    fn contains(&self, x: f64, y: f64) -> bool {
+    pub fn contains(&self, x: f64, y: f64) -> bool {
         x >= self.left as f64 && x < self.right as f64 && y >= self.top as f64 && y < self.bottom as f64
     }
 }
@@ -95,6 +95,40 @@ mod win {
             right: r.right,
             bottom: r.bottom,
         })
+    }
+
+    /// The monitor rect when the foreground window covers a whole monitor (a fullscreen video,
+    /// game or presentation). The desktop, the taskbar and our own windows don't count.
+    pub fn fullscreen_monitor() -> Option<Rect> {
+        use windows_sys::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+        use windows_sys::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+        unsafe {
+            let fg = GetForegroundWindow();
+            if fg.is_null() {
+                return None;
+            }
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(fg, &mut pid);
+            if pid == std::process::id() {
+                return None;
+            }
+            let mut buf = [0u16; 64];
+            let n = GetClassNameW(fg, buf.as_mut_ptr(), buf.len() as i32);
+            let class = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
+            if matches!(class.as_str(), "Progman" | "WorkerW" | "Shell_TrayWnd" | "Shell_SecondaryTrayWnd") {
+                return None;
+            }
+            let win = rect_of(fg)?;
+            let mon = MonitorFromWindow(fg, MONITOR_DEFAULTTONEAREST);
+            let mut info: MONITORINFO = std::mem::zeroed();
+            info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+            if GetMonitorInfoW(mon, &mut info) == 0 {
+                return None;
+            }
+            let m = info.rcMonitor;
+            let covers = win.left <= m.left && win.top <= m.top && win.right >= m.right && win.bottom >= m.bottom;
+            covers.then_some(Rect { left: m.left, top: m.top, right: m.right, bottom: m.bottom })
+        }
     }
 
     /// The window showing the tray icon at (x, y): the overflow flyout when the icon was
@@ -208,6 +242,9 @@ mod win {
     pub fn window_at(_: f64, _: f64) -> Option<Rect> {
         None
     }
+    pub fn fullscreen_monitor() -> Option<Rect> {
+        None
+    }
     pub fn own_by_taskbar(_: ()) -> bool {
         false
     }
@@ -228,6 +265,11 @@ fn window(app: &AppHandle) -> Option<WebviewWindow> {
 pub fn tray_center() -> Option<(f64, f64)> {
     let (_, tray) = win::taskbar()?;
     Some(((tray.left + tray.right) as f64 / 2.0, (tray.top + tray.bottom) as f64 / 2.0))
+}
+
+/// The monitor taken over by a fullscreen app, if any (physical px).
+pub fn fullscreen_monitor() -> Option<Rect> {
+    win::fullscreen_monitor()
 }
 
 /// The window under a screen point (physical px): the tray overflow flyout for icons in it.
@@ -280,6 +322,16 @@ pub fn keep_docked(app: AppHandle) {
             continue;
         }
         let Some(win) = window(&app) else { continue };
+        let covered = match (win::fullscreen_monitor(), win::taskbar()) {
+            (Some(fs), Some((bar, _))) => fs.contains(((bar.left + bar.right) / 2) as f64, bar.top as f64 - 1.0),
+            _ => false,
+        };
+        if covered {
+            if win.is_visible().unwrap_or(false) {
+                let _ = win.hide();
+            }
+            continue;
+        }
         if place_docked(&app, &win, win::taskbar_focused()) {
             if !win.is_visible().unwrap_or(false) {
                 let _ = win.show();

@@ -367,6 +367,38 @@ async fn do_refresh(app: &AppHandle) -> Snapshot {
     snapshot
 }
 
+/// Hides the island while a fullscreen app (video, game, presentation) covers its monitor, and
+/// brings it back afterwards. The taskbar widget handles this in `dock::keep_docked`.
+fn watch_fullscreen(app: AppHandle) {
+    let mut hidden = false;
+    loop {
+        std::thread::sleep(Duration::from_millis(400));
+        let state = app.state::<AppState>();
+        if *state.dragging.lock().unwrap() {
+            continue;
+        }
+        let island_mode = state.settings.lock().unwrap().mode == DisplayMode::Island;
+        let Some(main) = app.get_webview_window(island::LABEL) else { continue };
+        let covered = island_mode
+            && dock::fullscreen_monitor().is_some_and(|fs| {
+                // The island's own monitor, judged by the center of its window.
+                match (main.outer_position(), main.outer_size()) {
+                    (Ok(p), Ok(s)) => fs.contains(p.x as f64 + s.width as f64 / 2.0, p.y as f64 + 1.0),
+                    _ => false,
+                }
+            });
+        if covered && !hidden {
+            let _ = main.hide();
+            hidden = true;
+        } else if !covered && hidden {
+            if island_mode {
+                let _ = main.show();
+            }
+            hidden = false;
+        }
+    }
+}
+
 /// Refreshes on the interval from settings, re-reading it so changes apply without a restart.
 async fn refresh_loop(app: AppHandle) {
     loop {
@@ -520,6 +552,8 @@ pub fn run() {
             std::thread::spawn(move || island::track_hover(h));
             let h = handle.clone();
             std::thread::spawn(move || dock::keep_docked(h));
+            let h = handle.clone();
+            std::thread::spawn(move || watch_fullscreen(h));
             tauri::async_runtime::spawn(refresh_loop(handle.clone()));
             tauri::async_runtime::spawn(updates::run_loop(handle.clone()));
             Ok(())
