@@ -246,7 +246,7 @@ async function render() {
   $("startup").checked = settings.launch_at_login;
   $("auto-update").checked = settings.auto_update;
   const version = await invoke("app_version");
-  $("version").textContent = `v${version}`;
+  $("version").textContent = /^\d/.test(version) ? `v${version}` : version;
   $("version-label").textContent = t("versionN", { v: version });
   if (!$("check-updates").disabled) $("check-updates").textContent = latest ? t("installUpdate") : t("checkUpdates");
   markSelected();

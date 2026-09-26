@@ -6,3 +6,4 @@ src-tauri/gen/
 .agents/
 .claude/
 skills-lock.json
+.site/

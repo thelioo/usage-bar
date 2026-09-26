@@ -19,7 +19,23 @@
       updated_at: new Date().toISOString(),
     };
     let onSwitch = null;
-    window.__TAURI__ = {
+    // The hosting page's backend may not exist yet when this frame runs: queue calls until it does.
+    function hosted(label) {
+      const ready = new Promise((resolve) => {
+        const poll = () => (window.parent.usageBarBackend ? resolve(window.parent.usageBarBackend.connect(window, label)) : setTimeout(poll, 20));
+        poll();
+      });
+      return {
+        core: { invoke: (cmd, args) => ready.then((b) => b.core.invoke(cmd, args)) },
+        event: { listen: (name, fn) => ready.then((b) => b.event.listen(name, fn)) },
+        window: { getCurrentWindow: () => ({ label }) },
+      };
+    }
+    // On the website, the page hosting this frame provides the backend (see site/site.js), and
+    // the frame's role (main island, taskbar widget or tray panel) comes from ?label=.
+    const label = new URLSearchParams(location.search).get("label") || "main";
+    const host = window.parent !== window && window.parent.document.documentElement.hasAttribute("data-usage-bar-host");
+    window.__TAURI__ = host ? hosted(label) : {
       core: {
         invoke: async (cmd, args) => {
           if (cmd === "get_settings") return settings;

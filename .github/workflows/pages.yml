@@ -1,0 +1,37 @@
+name: Site
+
+# Publishes the website (site/) to GitHub Pages. The hero runs the app's real island UI, so the
+# site also ships src/ and the demo pages and GIFs from design/.
+on:
+  push:
+    branches: [main]
+    paths: [site/**, src/**, design/**, scripts/site.mjs, .github/workflows/pages.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+      - name: Assemble
+        run: node scripts/site.mjs --build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .site
+      - id: deployment
+        uses: actions/deploy-pages@v4
