@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 
 use crate::accounts::{Active, Provider, Slot};
-use crate::model::{AccountUsage, UsageWindow};
+use crate::model::{AccountUsage, ResetGrant, UsageWindow};
 use crate::settings::Settings;
 
 /// Last successful numbers per account, used when its saved token can't be used or the usage
@@ -15,6 +15,7 @@ use crate::settings::Settings;
 pub struct Cached {
     windows: Vec<UsageWindow>,
     credits: Option<String>,
+    resets: Vec<ResetGrant>,
     at: Option<DateTime<Utc>>,
     /// Don't call the usage API for this account before this time (after a 429).
     blocked_until: Option<DateTime<Utc>>,
@@ -92,18 +93,20 @@ pub async fn fetch_all(
                 sources,
                 windows: vec![],
                 credits: None,
+                resets: vec![],
                 error: None,
                 stale: false,
                 fetched_at: None,
             };
             match result {
-                Ok((windows, credits)) => {
+                Ok(Fetched { windows, credits, resets }) => {
                     cache.insert(
                         slot.id.clone(),
-                        Cached { windows: windows.clone(), credits: credits.clone(), at: Some(now), blocked_until: None },
+                        Cached { windows: windows.clone(), credits: credits.clone(), resets: resets.clone(), at: Some(now), blocked_until: None },
                     );
                     acc.windows = windows;
                     acc.credits = credits;
+                    acc.resets = resets;
                     acc.fetched_at = Some(now);
                 }
                 // Recently measured: the cached numbers are current, not stale.
@@ -113,6 +116,7 @@ pub async fn fetch_all(
                     let c = &cache[&slot.id];
                     acc.windows = c.windows.clone();
                     acc.credits = c.credits.clone();
+                    acc.resets = c.resets.clone();
                     acc.fetched_at = c.at;
                 }
                 Err(err) => {
@@ -127,6 +131,7 @@ pub async fn fetch_all(
                         Some(c) if !acc.active || err.starts_with("token") || err == "rate_limited" => {
                             acc.windows = predict(c.windows.clone());
                             acc.credits = c.credits.clone();
+                            acc.resets = c.resets.clone();
                             acc.fetched_at = c.at;
                             acc.stale = true;
                             if acc.active && err.starts_with("token") {
@@ -149,13 +154,23 @@ pub fn alias_key(provider: Provider, id: &str) -> String {
     format!("{}:{id}", provider.name().to_lowercase())
 }
 
-async fn fetch_one(client: &reqwest::Client, slot: &Slot) -> Result<(Vec<UsageWindow>, Option<String>), String> {
+struct Fetched {
+    windows: Vec<UsageWindow>,
+    credits: Option<String>,
+    resets: Vec<ResetGrant>,
+}
+
+async fn fetch_one(client: &reqwest::Client, slot: &Slot) -> Result<Fetched, String> {
     if slot.expired() {
         return Err("token_expired".into());
     }
     let (token, account) = slot.access().ok_or("bad_response")?;
     match slot.provider {
-        Provider::Claude => claude::fetch(client, &token).await.map(|w| (w, None)),
-        Provider::Codex => codex::fetch(client, &token, account.as_deref()).await.map(|u| (u.windows, u.credits)),
+        Provider::Claude => claude::fetch(client, &token)
+            .await
+            .map(|u| Fetched { windows: u.windows, credits: None, resets: u.resets }),
+        Provider::Codex => codex::fetch(client, &token, account.as_deref())
+            .await
+            .map(|u| Fetched { windows: u.windows, credits: u.credits, resets: u.resets }),
     }
 }

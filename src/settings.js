@@ -1,4 +1,4 @@
-import { t, translateDom, setLanguage, setSystemLocale, LANGUAGES } from "./i18n.js";
+import { t, translateDom, setLanguage, setSystemLocale, LANGUAGES, resetsIn, resetText } from "./i18n.js";
 
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
@@ -67,9 +67,18 @@ const peak = (a) => (a.windows.length ? Math.max(...a.windows.map((w) => w.used_
 function accountRow(p, a) {
   const key = `${p}:${a.id}`;
   const usage = peak(a);
+  // The fullest window is the one that matters; show when it resets.
+  const top = a.windows.reduce((m, w) => (w.used_percent > (m?.used_percent ?? -1) ? w : m), null);
   const meter = usage == null
     ? `<div class="meter none"><b>—</b></div>`
-    : `<div class="meter"><b>${Math.round(usage)}%</b><div class="track"><i style="width:${Math.min(100, usage)}%;background:${color(usage)}"></i></div></div>`;
+    : `<div class="meter"><b>${Math.round(usage)}%</b><div class="track"><i style="width:${Math.min(100, usage)}%;background:${color(usage)}"></i></div>
+        ${top?.resets_at ? `<small>${esc(resetsIn(top.resets_at))}</small>` : ""}</div>`;
+  const held = a.resets ?? [];
+  const total = held.reduce((n, r) => n + r.count, 0);
+  const resets = total > 0
+    ? `<em class="chip resets ${held.some((r) => r.usable) ? "live" : ""}"
+        title="${esc([t("resetsTitle"), ...held.map(resetText)].join("\n"))}">↺ ${total}</em>`
+    : "";
   return `
     <div class="account" data-key="${p}:${esc(a.id)}">
       <div class="avatar" style="background:hsl(${hue(a.id)} 55% 48%)">${esc(initial(a))}</div>
@@ -79,6 +88,7 @@ function accountRow(p, a) {
         <small>
           ${a.active ? `<em class="chip live">${t("inUse")}</em>` : ""}
           ${a.plan ? `<em class="chip">${esc(a.plan)}</em>` : ""}
+          ${resets}
           <span>${esc(settings.aliases[key] ? a.email ?? "" : a.org ?? "")}</span>
         </small>
       </div>

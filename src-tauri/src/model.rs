@@ -28,6 +28,8 @@ pub struct AccountUsage {
     pub windows: Vec<UsageWindow>,
     /// A balance, or "unlimited".
     pub credits: Option<String>,
+    /// Limit resets the account holds (granted by Anthropic/OpenAI, used on demand).
+    pub resets: Vec<ResetGrant>,
     /// An error code ("token_expired", "token_invalid", "bad_response", "http_<status>")
     /// or a raw network error message.
     pub error: Option<String>,
@@ -42,6 +44,21 @@ impl AccountUsage {
     pub fn peak(&self) -> Option<f64> {
         self.windows.iter().map(|w| w.used_percent).reduce(f64::max)
     }
+}
+
+/// A usage-limit reset the account can spend to refill its limits.
+#[derive(Debug, Clone, Serialize)]
+pub struct ResetGrant {
+    /// "full" (session + weekly) or "session".
+    pub kind: String,
+    /// The provider's own title, when it gives one (e.g. "Full reset").
+    pub title: Option<String>,
+    pub count: u32,
+    /// Whether it can be spent right now (usually only once a limit is reached).
+    pub usable: bool,
+    pub expires_at: Option<DateTime<Utc>>,
+    /// For resets that come back periodically: when the next one becomes available.
+    pub next_available_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]

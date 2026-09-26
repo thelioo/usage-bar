@@ -261,3 +261,8 @@ body.dock.floating, body.dock.floating *, body.dragging, body.dragging * { curso
   content: ""; position: absolute; inset: 0; margin: auto; width: 10px; height: 10px; border-radius: 50%;
   border: 1.5px solid var(--dim); border-top-color: var(--text); animation: spin 0.7s linear infinite;
 }
+
+/* Usage-limit resets held by an account */
+.reset-grant { display: flex; gap: 6px; align-items: baseline; margin-top: 8px; font-size: 11px; color: var(--dim); }
+.reset-grant span { color: var(--text); }
+.reset-grant.usable, .reset-grant.usable span { color: var(--ok); }

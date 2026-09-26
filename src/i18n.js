@@ -18,6 +18,8 @@ const MESSAGES = {
     descDisplay: "Where the island lives and how it opens.", descAccounts: "Your Claude and Codex accounts, and when to switch between them.", descData: "How often usage is checked, and for which tools.", descGeneral: "Language and startup.",
     rateLimited: "The usage service is busy — trying again in a few minutes",
     sUpdates: "Updates", autoUpdate: "Update automatically", checkUpdates: "Check for updates", checking: "Checking…", upToDate: "You're up to date", updateAvailable: "Version {v} is available", installUpdate: "Install and restart", updating: "Updating to {v}…", versionN: "Version {v}",
+   
+    resetFull: "Full reset", resetSession: "Session reset", resetUsableNow: "usable now", resetExpires: "expires {d}", resetNext: "next in {t}", resetsTitle: "Limit resets",
   },
   pt: {
     title: "Uso dos planos", loading: "Carregando…", noAccounts: "Nenhuma conta",
@@ -36,6 +38,8 @@ const MESSAGES = {
     descDisplay: "Onde a ilha fica e como ela abre.", descAccounts: "Suas contas do Claude e do Codex, e quando trocar entre elas.", descData: "Com que frequência o uso é consultado, e de quais ferramentas.", descGeneral: "Idioma e inicialização.",
     rateLimited: "O serviço de uso está ocupado — tentando de novo em alguns minutos",
     sUpdates: "Atualizações", autoUpdate: "Atualizar automaticamente", checkUpdates: "Procurar atualizações", checking: "Procurando…", upToDate: "Você está na versão mais recente", updateAvailable: "A versão {v} está disponível", installUpdate: "Instalar e reiniciar", updating: "Atualizando para {v}…", versionN: "Versão {v}",
+   
+    resetFull: "Reset completo", resetSession: "Reset da sessão", resetUsableNow: "utilizável agora", resetExpires: "expira em {d}", resetNext: "próximo em {t}", resetsTitle: "Resets de limite",
   },
   es: {
     title: "Uso de los planes", loading: "Cargando…", noAccounts: "Sin cuentas",
@@ -54,6 +58,8 @@ const MESSAGES = {
     descDisplay: "Dónde vive la isla y cómo se abre.", descAccounts: "Tus cuentas de Claude y Codex, y cuándo cambiar entre ellas.", descData: "Cada cuánto se consulta el uso y de qué herramientas.", descGeneral: "Idioma e inicio.",
     rateLimited: "El servicio de uso está ocupado: se reintentará en unos minutos",
     sUpdates: "Actualizaciones", autoUpdate: "Actualizar automáticamente", checkUpdates: "Buscar actualizaciones", checking: "Buscando…", upToDate: "Tienes la última versión", updateAvailable: "La versión {v} está disponible", installUpdate: "Instalar y reiniciar", updating: "Actualizando a {v}…", versionN: "Versión {v}",
+   
+    resetFull: "Reinicio completo", resetSession: "Reinicio de sesión", resetUsableNow: "utilizable ahora", resetExpires: "caduca el {d}", resetNext: "próximo en {t}", resetsTitle: "Reinicios de límite",
   },
   fr: {
     title: "Utilisation des forfaits", loading: "Chargement…", noAccounts: "Aucun compte",
@@ -72,6 +78,8 @@ const MESSAGES = {
     descDisplay: "Où se trouve l’île et comment elle s’ouvre.", descAccounts: "Vos comptes Claude et Codex, et quand passer de l’un à l’autre.", descData: "À quelle fréquence l’utilisation est vérifiée, et pour quels outils.", descGeneral: "Langue et démarrage.",
     rateLimited: "Le service d’utilisation est occupé — nouvel essai dans quelques minutes",
     sUpdates: "Mises à jour", autoUpdate: "Mettre à jour automatiquement", checkUpdates: "Rechercher des mises à jour", checking: "Recherche…", upToDate: "Vous êtes à jour", updateAvailable: "La version {v} est disponible", installUpdate: "Installer et redémarrer", updating: "Mise à jour vers {v}…", versionN: "Version {v}",
+   
+    resetFull: "Réinitialisation complète", resetSession: "Réinitialisation de session", resetUsableNow: "utilisable maintenant", resetExpires: "expire le {d}", resetNext: "prochaine dans {t}", resetsTitle: "Réinitialisations de limite",
   },
   de: {
     title: "Plan-Nutzung", loading: "Wird geladen…", noAccounts: "Keine Konten",
@@ -90,6 +98,8 @@ const MESSAGES = {
     descDisplay: "Wo die Insel sitzt und wie sie sich öffnet.", descAccounts: "Deine Claude- und Codex-Konten und wann zwischen ihnen gewechselt wird.", descData: "Wie oft die Nutzung abgefragt wird und für welche Tools.", descGeneral: "Sprache und Autostart.",
     rateLimited: "Der Nutzungsdienst ist ausgelastet – neuer Versuch in ein paar Minuten",
     sUpdates: "Updates", autoUpdate: "Automatisch aktualisieren", checkUpdates: "Nach Updates suchen", checking: "Suche…", upToDate: "Du bist auf dem neuesten Stand", updateAvailable: "Version {v} ist verfügbar", installUpdate: "Installieren und neu starten", updating: "Aktualisiere auf {v}…", versionN: "Version {v}",
+   
+    resetFull: "Vollständiger Reset", resetSession: "Sitzungs-Reset", resetUsableNow: "jetzt nutzbar", resetExpires: "läuft ab am {d}", resetNext: "nächster in {t}", resetsTitle: "Limit-Resets",
   },
   it: {
     title: "Utilizzo dei piani", loading: "Caricamento…", noAccounts: "Nessun account",
@@ -108,6 +118,8 @@ const MESSAGES = {
     descDisplay: "Dove si trova l’isola e come si apre.", descAccounts: "I tuoi account Claude e Codex, e quando passare dall’uno all’altro.", descData: "Ogni quanto viene controllato l’utilizzo e per quali strumenti.", descGeneral: "Lingua e avvio.",
     rateLimited: "Il servizio di utilizzo è occupato: nuovo tentativo tra qualche minuto",
     sUpdates: "Aggiornamenti", autoUpdate: "Aggiorna automaticamente", checkUpdates: "Cerca aggiornamenti", checking: "Ricerca…", upToDate: "Sei aggiornato", updateAvailable: "È disponibile la versione {v}", installUpdate: "Installa e riavvia", updating: "Aggiornamento a {v}…", versionN: "Versione {v}",
+   
+    resetFull: "Reset completo", resetSession: "Reset della sessione", resetUsableNow: "utilizzabile ora", resetExpires: "scade il {d}", resetNext: "prossimo tra {t}", resetsTitle: "Reset del limite",
   },
   ja: {
     title: "プランの使用状況", loading: "読み込み中…", noAccounts: "アカウントなし",
@@ -126,6 +138,8 @@ const MESSAGES = {
     descDisplay: "アイランドの位置と開き方。", descAccounts: "Claude と Codex のアカウントと、切り替えのタイミング。", descData: "使用状況を確認する頻度と対象のツール。", descGeneral: "言語と起動。",
     rateLimited: "使用状況サービスが混み合っています。数分後に再試行します",
     sUpdates: "アップデート", autoUpdate: "自動的にアップデート", checkUpdates: "アップデートを確認", checking: "確認中…", upToDate: "最新バージョンです", updateAvailable: "バージョン {v} が利用可能です", installUpdate: "インストールして再起動", updating: "{v} にアップデート中…", versionN: "バージョン {v}",
+   
+    resetFull: "フルリセット", resetSession: "セッションリセット", resetUsableNow: "今すぐ使用可能", resetExpires: "{d} に期限切れ", resetNext: "次回まで {t}", resetsTitle: "上限リセット",
   },
   zh: {
     title: "套餐用量", loading: "加载中…", noAccounts: "没有账户",
@@ -144,6 +158,8 @@ const MESSAGES = {
     descDisplay: "灵动岛的位置和打开方式。", descAccounts: "你的 Claude 和 Codex 账户，以及何时在它们之间切换。", descData: "多久检查一次用量，以及检查哪些工具。", descGeneral: "语言和启动。",
     rateLimited: "用量服务繁忙，几分钟后重试",
     sUpdates: "更新", autoUpdate: "自动更新", checkUpdates: "检查更新", checking: "正在检查…", upToDate: "已是最新版本", updateAvailable: "有新版本 {v} 可用", installUpdate: "安装并重启", updating: "正在更新到 {v}…", versionN: "版本 {v}",
+   
+    resetFull: "完全重置", resetSession: "会话重置", resetUsableNow: "现在可用", resetExpires: "{d} 到期", resetNext: "{t}后可用", resetsTitle: "额度重置",
   },
   ko: {
     title: "요금제 사용량", loading: "불러오는 중…", noAccounts: "계정 없음",
@@ -162,6 +178,8 @@ const MESSAGES = {
     descDisplay: "아일랜드의 위치와 여는 방식.", descAccounts: "Claude와 Codex 계정, 그리고 계정을 전환할 시점.", descData: "사용량을 확인하는 주기와 대상 도구.", descGeneral: "언어 및 시작.",
     rateLimited: "사용량 서비스가 혼잡합니다. 몇 분 후 다시 시도합니다",
     sUpdates: "업데이트", autoUpdate: "자동 업데이트", checkUpdates: "업데이트 확인", checking: "확인 중…", upToDate: "최신 버전입니다", updateAvailable: "버전 {v}을(를) 사용할 수 있습니다", installUpdate: "설치 후 재시작", updating: "{v}(으)로 업데이트 중…", versionN: "버전 {v}",
+   
+    resetFull: "전체 초기화", resetSession: "세션 초기화", resetUsableNow: "지금 사용 가능", resetExpires: "{d} 만료", resetNext: "{t} 후 다음", resetsTitle: "한도 초기화",
   },
   ru: {
     title: "Использование тарифов", loading: "Загрузка…", noAccounts: "Нет аккаунтов",
@@ -180,6 +198,8 @@ const MESSAGES = {
     descDisplay: "Где находится остров и как он открывается.", descAccounts: "Ваши аккаунты Claude и Codex и когда между ними переключаться.", descData: "Как часто проверяется расход и для каких инструментов.", descGeneral: "Язык и автозапуск.",
     rateLimited: "Сервис учёта занят — повторим через несколько минут",
     sUpdates: "Обновления", autoUpdate: "Обновлять автоматически", checkUpdates: "Проверить обновления", checking: "Проверка…", upToDate: "У вас последняя версия", updateAvailable: "Доступна версия {v}", installUpdate: "Установить и перезапустить", updating: "Обновление до {v}…", versionN: "Версия {v}",
+   
+    resetFull: "Полный сброс", resetSession: "Сброс сессии", resetUsableNow: "доступен сейчас", resetExpires: "истекает {d}", resetNext: "следующий через {t}", resetsTitle: "Сбросы лимита",
   },
 };
 
@@ -231,6 +251,24 @@ export function duration(totalMinutes) {
   if (d) return [DAY.format(d), h && HOUR.format(h)].filter(Boolean).join(" ");
   if (h) return [HOUR.format(h), m && MIN.format(m)].filter(Boolean).join(" ");
   return MIN.format(Math.max(1, m));
+}
+
+/** Short localized date, e.g. "Oct 22". */
+export function shortDate(iso) {
+  return new Date(iso).toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
+}
+
+/** One line describing a usage-limit reset the account holds. */
+export function resetText(r) {
+  const name = r.title || t(r.kind === "session" ? "resetSession" : "resetFull");
+  const parts = [r.count > 1 ? `${name} ×${r.count}` : name];
+  if (r.usable) parts.push(t("resetUsableNow"));
+  if (r.expires_at) parts.push(t("resetExpires", { d: shortDate(r.expires_at) }));
+  if (r.next_available_at && !r.count) {
+    const mins = Math.max(1, Math.round((new Date(r.next_available_at) - Date.now()) / 60000));
+    parts.push(t("resetNext", { t: duration(mins) }));
+  }
+  return parts.join(" · ");
 }
 
 export function resetsIn(iso) {

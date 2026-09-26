@@ -190,7 +190,7 @@ select:focus-visible, .segmented button:focus-visible, .btn:focus-visible { outl
 .who small span { overflow: hidden; text-overflow: ellipsis; }
 .chip { font-style: normal; flex: none; padding: 1px 7px; border-radius: 6px; background: var(--seg); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--dim); }
 .chip.live { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent-ink); text-transform: none; letter-spacing: 0; }
-.meter { flex: none; width: 92px; text-align: right; }
+.meter { flex: none; width: 120px; text-align: right; }
 .meter b { font-size: 12px; font-variant-numeric: tabular-nums; }
 .meter .track { height: 4px; border-radius: 2px; background: var(--seg); overflow: hidden; margin-top: 4px; }
 .meter .track i { display: block; height: 100%; border-radius: 2px; }
@@ -227,3 +227,6 @@ input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .row .title label { font-weight: 500; }
 .row .title small { color: var(--dim); font-size: 11.5px; }
 .row .title small.available { color: var(--accent-ink); font-weight: 600; }
+
+.meter small { display: block; margin-top: 3px; color: var(--dim); font-size: 10.5px; white-space: nowrap; }
+.chip.resets { text-transform: none; letter-spacing: 0; }

@@ -1,4 +1,4 @@
-import { t, resetsIn, windowLabel, errorText, creditsText, time, translateDom, setLanguage, setSystemLocale, duration } from "./i18n.js";
+import { t, resetsIn, windowLabel, errorText, creditsText, time, translateDom, setLanguage, setSystemLocale, duration, resetText } from "./i18n.js";
 import { layoutFor, applyLayout, hitShape, kindOf, mix } from "./shape.js";
 
 const { invoke } = window.__TAURI__.core;
@@ -129,7 +129,14 @@ function renderCompact(snap) {
 }
 
 const PROVIDER_NAME = { claude: "Claude", codex: "Codex" };
+
 const accountName = (a) => a.alias || a.email || t("unknownAccount");
+
+/** Usage-limit resets the account holds, one line each; green when usable now. */
+function resetLines(a) {
+  return (a.resets ?? []).map((r) =>
+    `<div class="reset-grant ${r.usable ? "usable" : ""}"><span>↺</span>${esc(resetText(r))}</div>`).join("");
+}
 
 function bars(a, delay) {
   return a.windows.map((w) => `
@@ -172,6 +179,7 @@ function renderDetails(snap) {
           <div class="acc-meta">${esc(meta)}</div>
           ${a.error ? `<div class="error">${esc(errorText(PROVIDER_NAME[provider], a.error))}</div>` : ""}
           ${bars(a, 0.15 + i * 0.05)}
+          ${resetLines(a)}
           ${a.credits ? `<div class="reset" style="margin-top:6px">${esc(creditsText(a.credits))}</div>` : ""}
         </div>`;
       }).join("")}
