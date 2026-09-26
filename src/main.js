@@ -1,5 +1,6 @@
-import { t, resetsIn, windowLabel, errorText, creditsText, time, translateDom, setLanguage, setSystemLocale, duration, resetText } from "./i18n.js";
+import { t, resetsIn, windowLabel, errorText, creditsText, time, translateDom, setLanguage, setSystemLocale, duration, resetText, groupResets } from "./i18n.js";
 import { layoutFor, applyLayout, hitShape, kindOf, mix } from "./shape.js";
+import { MARK } from "./marks.js";
 
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
@@ -86,10 +87,18 @@ function ring(p) {
 /** The window closest to its limit is what matters at a glance. */
 const peak = (a) => a.windows.reduce((m, w) => (w.used_percent > (m?.used_percent ?? -1) ? w : m), null);
 
+let compactStyle = "names";
+
 const chip = (a) => {
   const w = peak(a);
-  const value = w ? `${ring(w.used_percent)}${Math.round(w.used_percent)}%` : `<span style="color:var(--warn)">!</span>`;
-  return `<span class="chip"><span class="name">${PROVIDER_NAME[a.provider]}</span>${value}</span>`;
+  const pct = w ? `${Math.round(w.used_percent)}%` : `<span style="color:var(--warn)">!</span>`;
+  // Minimal style: only the usage ring, with the provider mark inside it; the name and the
+  // number are in the tooltip.
+  if (compactStyle === "minimal" || compactStyle === "icons") {
+    const tip = w ? `${PROVIDER_NAME[a.provider]} ${Math.round(w.used_percent)}%` : PROVIDER_NAME[a.provider];
+    return `<span class="chip" title="${tip}"><span class="ring-mark">${ring(w?.used_percent ?? 0)}${MARK[a.provider]}</span></span>`;
+  }
+  return `<span class="chip" title="${PROVIDER_NAME[a.provider]}"><span class="name">${PROVIDER_NAME[a.provider]}</span>${w ? ring(w.used_percent) : ""}${pct}</span>`;
 };
 
 let toast = null;
@@ -134,7 +143,7 @@ const accountName = (a) => a.alias || a.email || t("unknownAccount");
 
 /** Usage-limit resets the account holds, one line each; green when usable now. */
 function resetLines(a) {
-  return (a.resets ?? []).map((r) =>
+  return groupResets(a.resets).map((r) =>
     `<div class="reset-grant ${r.usable ? "usable" : ""}"><span>↺</span>${esc(resetText(r))}</div>`).join("");
 }
 
@@ -231,7 +240,7 @@ $accounts.addEventListener("click", async (e) => {
   }
 });
 
-const compactWidth = () => Math.max(160, Math.ceil($compact.scrollWidth));
+const compactWidth = () => Math.max(96, Math.ceil($compact.scrollWidth));
 const expandedHeight = () => Math.min(MAX_H, Math.ceil($details.scrollHeight));
 
 let lastShape = "";
@@ -316,12 +325,13 @@ function paint() {
   // Collapsed content stays where it rests on the arms and dissolves quickly.
   const { rest, sizes } = geo;
   if (rest.h) {
-    $compact.style.left = `${rest.h.x - box.x + (rest.h.w - sizes.gw) / 2}px`;
-    $compact.style.top = `${rest.h.y - box.y}px`;
+    // Whole pixels: half-pixel offsets blur and shift small glyphs.
+    $compact.style.left = `${Math.round(rest.h.x - box.x + (rest.h.w - sizes.gw) / 2)}px`;
+    $compact.style.top = `${Math.round(rest.h.y - box.y)}px`;
   }
   if (rest.v) {
-    $compactV.style.left = `${rest.v.x - box.x}px`;
-    $compactV.style.top = `${rest.v.y - box.y + (rest.v.h - sizes.gl) / 2}px`;
+    $compactV.style.left = `${Math.round(rest.v.x - box.x)}px`;
+    $compactV.style.top = `${Math.round(rest.v.y - box.y + (rest.v.h - sizes.gl) / 2)}px`;
   }
   const out = clamp01(1 - q * 2.5);
   for (const el of [$compact, $compactV]) {
@@ -512,6 +522,7 @@ document.getElementById("open-settings").addEventListener("click", () => invoke(
 
 function applySettings(settings) {
   expandOn = settings.expand_on;
+  compactStyle = settings.compact_style ?? "names";
   if (IS_MAIN) {
     anchor = settings.anchor;
     document.body.dataset.anchor = anchor;

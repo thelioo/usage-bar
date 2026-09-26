@@ -25,7 +25,7 @@ function canonical(kind, { expanded, gw, gl, dh }, W, H) {
   const look = expanded ? LOOK.expanded : LOOK.compact;
   const e = look.ear;
   if (kind === "top") {
-    const w = expanded ? CARD_W : Math.max(160, gw);
+    const w = expanded ? CARD_W : Math.max(96, gw);
     const h = expanded ? dh : T;
     const r = look.radius;
     const x = (W - w) / 2;

@@ -67,7 +67,7 @@ svg { display: block; }
   border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer;
   color: var(--dim); font-weight: 500; transition: background 0.15s, color 0.15s;
 }
-.nav svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.nav svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .nav:hover { background: var(--hover); color: var(--text); }
 .nav.active { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
 .version { margin-top: auto; padding: 0 10px; font-size: 11px; color: var(--faint); }

@@ -32,9 +32,21 @@ pub fn place(app: &AppHandle) {
     let (w, h, margin) = (WIDTH * scale, height * scale, MARGIN * scale);
     let (anchor_x, anchor_y) = anchor.unwrap_or((ax + aw, ay + ah));
 
-    let x = (anchor_x - w / 2.0).clamp(ax + margin, ax + aw - w - margin);
+    let mut x = (anchor_x - w / 2.0).clamp(ax + margin, ax + aw - w - margin);
     // Taskbar at the bottom (the usual case) puts the tray below the work area's middle.
-    let y = if anchor_y >= ay + ah / 2.0 { ay + ah - h - margin } else { ay + margin };
+    let mut y = if anchor_y >= ay + ah / 2.0 { ay + ah - h - margin } else { ay + margin };
+
+    // Opened from the tray overflow flyout, which stays open: sit above it (or beside it when
+    // there's no room above) instead of covering it.
+    if let Some(f) = *state.panel_avoid.lock().unwrap() {
+        let (fl, ft, fr) = (f.left as f64, f.top as f64, f.right as f64);
+        if ft - margin - h >= ay + margin {
+            x = ((fl + fr) / 2.0 - w / 2.0).clamp(ax + margin, ax + aw - w - margin);
+            y = ft - margin - h;
+        } else {
+            x = (fl - margin - w).max(ax + margin);
+        }
+    }
 
     let _ = win.set_size(LogicalSize::new(WIDTH, height));
     let _ = win.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));

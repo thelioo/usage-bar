@@ -34,6 +34,8 @@ pub struct AppState {
     /// Physical center of the tray icon from the last click.
     tray_anchor: Mutex<Option<(f64, f64)>>,
     panel_height: Mutex<f64>,
+    /// When opened from the tray overflow flyout: the flyout's rect, which the panel must not cover.
+    panel_avoid: Mutex<Option<dock::Rect>>,
     panel_hidden_at: Mutex<Option<Instant>>,
     /// Content width of the taskbar widget, in CSS px.
     dock_width: Mutex<f64>,
@@ -228,6 +230,7 @@ fn set_dock_width(app: AppHandle, width: f64) {
 
 #[tauri::command]
 fn dock_clicked(app: AppHandle) {
+    *app.state::<AppState>().panel_avoid.lock().unwrap() = None;
     if let Some(w) = app.get_webview_window(dock::LABEL) {
         if let (Ok(pos), Ok(size)) = (w.outer_position(), w.outer_size()) {
             *app.state::<AppState>().tray_anchor.lock().unwrap() = Some((
@@ -388,6 +391,7 @@ pub fn run() {
         tray_items: Mutex::default(),
         tray_anchor: Mutex::default(),
         panel_height: Mutex::new(320.0),
+        panel_avoid: Mutex::default(),
         panel_hidden_at: Mutex::default(),
         dock_width: Mutex::new(160.0),
         dragging: Mutex::default(),
@@ -466,9 +470,22 @@ pub fn run() {
                         let app = tray.app_handle();
                         let pos = rect.position.to_physical::<f64>(1.0);
                         let size = rect.size.to_physical::<f64>(1.0);
-                        *app.state::<AppState>().tray_anchor.lock().unwrap() =
-                            Some((pos.x + size.width / 2.0, pos.y + size.height / 2.0));
-                        show_usage(app);
+                        let icon = (pos.x + size.width / 2.0, pos.y + size.height / 2.0);
+                        // Clicked inside the tray overflow flyout (above the taskbar): open where
+                        // Windows opens tray popovers, by the clock, instead of over the flyout.
+                        let in_flyout = dock::taskbar_top().is_some_and(|top| icon.1 < top);
+                        let anchor = if in_flyout { dock::tray_center().unwrap_or(icon) } else { icon };
+                        *app.state::<AppState>().tray_anchor.lock().unwrap() = Some(anchor);
+                        *app.state::<AppState>().panel_avoid.lock().unwrap() =
+                            if in_flyout { dock::window_at(icon.0, icon.1) } else { None };
+                        // Outside island mode, the tray icon opens the popover by the tray; it
+                        // must not reuse the widget's position (that would open it mid-screen).
+                        let mode = app.state::<AppState>().settings.lock().unwrap().mode;
+                        if mode == DisplayMode::Island {
+                            show_usage(app);
+                        } else {
+                            panel::toggle(app);
+                        }
                     }
                 })
                 .build(app)?;

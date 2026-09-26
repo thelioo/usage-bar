@@ -20,6 +20,8 @@ const MESSAGES = {
     sUpdates: "Updates", autoUpdate: "Update automatically", checkUpdates: "Check for updates", checking: "Checking…", upToDate: "You're up to date", updateAvailable: "Version {v} is available", installUpdate: "Install and restart", updating: "Updating to {v}…", versionN: "Version {v}",
    
     resetFull: "Full reset", resetSession: "Session reset", resetUsableNow: "usable now", resetExpires: "expires {d}", resetNext: "next in {t}", resetsTitle: "Limit resets",
+    resetNextExpires: "next expires {d}",
+    sCompact: "Collapsed style", compactNames: "Names", compactMinimal: "Minimal",
   },
   pt: {
     title: "Uso dos planos", loading: "Carregando…", noAccounts: "Nenhuma conta",
@@ -40,6 +42,8 @@ const MESSAGES = {
     sUpdates: "Atualizações", autoUpdate: "Atualizar automaticamente", checkUpdates: "Procurar atualizações", checking: "Procurando…", upToDate: "Você está na versão mais recente", updateAvailable: "A versão {v} está disponível", installUpdate: "Instalar e reiniciar", updating: "Atualizando para {v}…", versionN: "Versão {v}",
    
     resetFull: "Reset completo", resetSession: "Reset da sessão", resetUsableNow: "utilizável agora", resetExpires: "expira em {d}", resetNext: "próximo em {t}", resetsTitle: "Resets de limite",
+    resetNextExpires: "próximo expira em {d}",
+    sCompact: "Estilo recolhido", compactNames: "Nomes", compactMinimal: "Minimalista",
   },
   es: {
     title: "Uso de los planes", loading: "Cargando…", noAccounts: "Sin cuentas",
@@ -60,6 +64,8 @@ const MESSAGES = {
     sUpdates: "Actualizaciones", autoUpdate: "Actualizar automáticamente", checkUpdates: "Buscar actualizaciones", checking: "Buscando…", upToDate: "Tienes la última versión", updateAvailable: "La versión {v} está disponible", installUpdate: "Instalar y reiniciar", updating: "Actualizando a {v}…", versionN: "Versión {v}",
    
     resetFull: "Reinicio completo", resetSession: "Reinicio de sesión", resetUsableNow: "utilizable ahora", resetExpires: "caduca el {d}", resetNext: "próximo en {t}", resetsTitle: "Reinicios de límite",
+    resetNextExpires: "el próximo caduca el {d}",
+    sCompact: "Estilo contraído", compactNames: "Nombres", compactMinimal: "Minimalista",
   },
   fr: {
     title: "Utilisation des forfaits", loading: "Chargement…", noAccounts: "Aucun compte",
@@ -80,6 +86,8 @@ const MESSAGES = {
     sUpdates: "Mises à jour", autoUpdate: "Mettre à jour automatiquement", checkUpdates: "Rechercher des mises à jour", checking: "Recherche…", upToDate: "Vous êtes à jour", updateAvailable: "La version {v} est disponible", installUpdate: "Installer et redémarrer", updating: "Mise à jour vers {v}…", versionN: "Version {v}",
    
     resetFull: "Réinitialisation complète", resetSession: "Réinitialisation de session", resetUsableNow: "utilisable maintenant", resetExpires: "expire le {d}", resetNext: "prochaine dans {t}", resetsTitle: "Réinitialisations de limite",
+    resetNextExpires: "le prochain expire le {d}",
+    sCompact: "Style réduit", compactNames: "Noms", compactMinimal: "Minimaliste",
   },
   de: {
     title: "Plan-Nutzung", loading: "Wird geladen…", noAccounts: "Keine Konten",
@@ -100,6 +108,8 @@ const MESSAGES = {
     sUpdates: "Updates", autoUpdate: "Automatisch aktualisieren", checkUpdates: "Nach Updates suchen", checking: "Suche…", upToDate: "Du bist auf dem neuesten Stand", updateAvailable: "Version {v} ist verfügbar", installUpdate: "Installieren und neu starten", updating: "Aktualisiere auf {v}…", versionN: "Version {v}",
    
     resetFull: "Vollständiger Reset", resetSession: "Sitzungs-Reset", resetUsableNow: "jetzt nutzbar", resetExpires: "läuft ab am {d}", resetNext: "nächster in {t}", resetsTitle: "Limit-Resets",
+    resetNextExpires: "nächster läuft ab am {d}",
+    sCompact: "Eingeklappter Stil", compactNames: "Namen", compactMinimal: "Minimal",
   },
   it: {
     title: "Utilizzo dei piani", loading: "Caricamento…", noAccounts: "Nessun account",
@@ -120,6 +130,8 @@ const MESSAGES = {
     sUpdates: "Aggiornamenti", autoUpdate: "Aggiorna automaticamente", checkUpdates: "Cerca aggiornamenti", checking: "Ricerca…", upToDate: "Sei aggiornato", updateAvailable: "È disponibile la versione {v}", installUpdate: "Installa e riavvia", updating: "Aggiornamento a {v}…", versionN: "Versione {v}",
    
     resetFull: "Reset completo", resetSession: "Reset della sessione", resetUsableNow: "utilizzabile ora", resetExpires: "scade il {d}", resetNext: "prossimo tra {t}", resetsTitle: "Reset del limite",
+    resetNextExpires: "il prossimo scade il {d}",
+    sCompact: "Stile compatto", compactNames: "Nomi", compactMinimal: "Minimale",
   },
   ja: {
     title: "プランの使用状況", loading: "読み込み中…", noAccounts: "アカウントなし",
@@ -140,6 +152,8 @@ const MESSAGES = {
     sUpdates: "アップデート", autoUpdate: "自動的にアップデート", checkUpdates: "アップデートを確認", checking: "確認中…", upToDate: "最新バージョンです", updateAvailable: "バージョン {v} が利用可能です", installUpdate: "インストールして再起動", updating: "{v} にアップデート中…", versionN: "バージョン {v}",
    
     resetFull: "フルリセット", resetSession: "セッションリセット", resetUsableNow: "今すぐ使用可能", resetExpires: "{d} に期限切れ", resetNext: "次回まで {t}", resetsTitle: "上限リセット",
+    resetNextExpires: "次は {d} に期限切れ",
+    sCompact: "折りたたみ時の表示", compactNames: "名前", compactMinimal: "ミニマル",
   },
   zh: {
     title: "套餐用量", loading: "加载中…", noAccounts: "没有账户",
@@ -160,6 +174,8 @@ const MESSAGES = {
     sUpdates: "更新", autoUpdate: "自动更新", checkUpdates: "检查更新", checking: "正在检查…", upToDate: "已是最新版本", updateAvailable: "有新版本 {v} 可用", installUpdate: "安装并重启", updating: "正在更新到 {v}…", versionN: "版本 {v}",
    
     resetFull: "完全重置", resetSession: "会话重置", resetUsableNow: "现在可用", resetExpires: "{d} 到期", resetNext: "{t}后可用", resetsTitle: "额度重置",
+    resetNextExpires: "最早 {d} 到期",
+    sCompact: "收起样式", compactNames: "名称", compactMinimal: "极简",
   },
   ko: {
     title: "요금제 사용량", loading: "불러오는 중…", noAccounts: "계정 없음",
@@ -180,6 +196,8 @@ const MESSAGES = {
     sUpdates: "업데이트", autoUpdate: "자동 업데이트", checkUpdates: "업데이트 확인", checking: "확인 중…", upToDate: "최신 버전입니다", updateAvailable: "버전 {v}을(를) 사용할 수 있습니다", installUpdate: "설치 후 재시작", updating: "{v}(으)로 업데이트 중…", versionN: "버전 {v}",
    
     resetFull: "전체 초기화", resetSession: "세션 초기화", resetUsableNow: "지금 사용 가능", resetExpires: "{d} 만료", resetNext: "{t} 후 다음", resetsTitle: "한도 초기화",
+    resetNextExpires: "다음 만료 {d}",
+    sCompact: "접힌 상태 스타일", compactNames: "이름", compactMinimal: "미니멀",
   },
   ru: {
     title: "Использование тарифов", loading: "Загрузка…", noAccounts: "Нет аккаунтов",
@@ -200,6 +218,8 @@ const MESSAGES = {
     sUpdates: "Обновления", autoUpdate: "Обновлять автоматически", checkUpdates: "Проверить обновления", checking: "Проверка…", upToDate: "У вас последняя версия", updateAvailable: "Доступна версия {v}", installUpdate: "Установить и перезапустить", updating: "Обновление до {v}…", versionN: "Версия {v}",
    
     resetFull: "Полный сброс", resetSession: "Сброс сессии", resetUsableNow: "доступен сейчас", resetExpires: "истекает {d}", resetNext: "следующий через {t}", resetsTitle: "Сбросы лимита",
+    resetNextExpires: "ближайший истекает {d}",
+    sCompact: "Свёрнутый вид", compactNames: "Названия", compactMinimal: "Минимальный",
   },
 };
 
@@ -258,12 +278,34 @@ export function shortDate(iso) {
   return new Date(iso).toLocaleDateString(LOCALE, { month: "short", day: "numeric" });
 }
 
-/** One line describing a usage-limit reset the account holds. */
+/**
+ * Merges identical resets (same kind, title and usability) into one entry with a total count
+ * and the soonest expiry, so an account holding several doesn't list them one by one.
+ */
+export function groupResets(resets) {
+  const groups = new Map();
+  for (const r of resets ?? []) {
+    const key = `${r.kind}|${r.title ?? ""}|${r.usable}`;
+    const g = groups.get(key);
+    if (!g) {
+      groups.set(key, { ...r, entries: 1 });
+      continue;
+    }
+    g.count += r.count;
+    g.entries += 1;
+    if (r.expires_at && (!g.expires_at || r.expires_at < g.expires_at)) g.expires_at = r.expires_at;
+    if (r.next_available_at && (!g.next_available_at || r.next_available_at < g.next_available_at)) g.next_available_at = r.next_available_at;
+  }
+  // Usable first, then the ones expiring soonest.
+  return [...groups.values()].sort((a, b) => (b.usable - a.usable) || String(a.expires_at ?? "~").localeCompare(String(b.expires_at ?? "~")));
+}
+
+/** One line describing a usage-limit reset (or a group of identical ones). */
 export function resetText(r) {
   const name = r.title || t(r.kind === "session" ? "resetSession" : "resetFull");
   const parts = [r.count > 1 ? `${name} ×${r.count}` : name];
   if (r.usable) parts.push(t("resetUsableNow"));
-  if (r.expires_at) parts.push(t("resetExpires", { d: shortDate(r.expires_at) }));
+  if (r.expires_at) parts.push(t(r.entries > 1 ? "resetNextExpires" : "resetExpires", { d: shortDate(r.expires_at) }));
   if (r.next_available_at && !r.count) {
     const mins = Math.max(1, Math.round((new Date(r.next_available_at) - Date.now()) / 60000));
     parts.push(t("resetNext", { t: duration(mins) }));

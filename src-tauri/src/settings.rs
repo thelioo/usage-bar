@@ -35,6 +35,17 @@ impl Anchor {
     pub const ALL: [Anchor; 3] = [Anchor::Top, Anchor::Left, Anchor::Right];
 }
 
+/// How providers are told apart in the collapsed island and the taskbar widget.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CompactStyle {
+    /// "Claude 30%".
+    Names,
+    /// Just the usage ring with a small provider mark inside; no name, no percentage.
+    #[serde(alias = "icons")]
+    Minimal,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExpandOn {
@@ -95,6 +106,7 @@ pub struct Settings {
     #[serde(deserialize_with = "lenient_anchor")]
     pub anchor: Anchor,
     pub expand_on: ExpandOn,
+    pub compact_style: CompactStyle,
     pub refresh_minutes: u32,
     pub providers: Providers,
     /// "auto" follows the system language.
@@ -114,6 +126,7 @@ impl Default for Settings {
             monitor: None,
             anchor: Anchor::Top,
             expand_on: ExpandOn::Hover,
+            compact_style: CompactStyle::Names,
             refresh_minutes: 5,
             providers: Providers::default(),
             language: "auto".into(),

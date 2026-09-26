@@ -42,9 +42,43 @@ mod win {
     use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        FindWindowExW, FindWindowW, GetWindowRect, IsWindowVisible, SetWindowPos, HWND_TOPMOST,
-        SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+        FindWindowExW, FindWindowW, GetClassNameW, GetForegroundWindow, GetWindowLongPtrW, GetWindowRect,
+        IsWindowVisible, SetWindowLongPtrW, SetWindowPos, GWLP_HWNDPARENT, HWND_TOPMOST, SWP_NOACTIVATE,
+        SWP_NOMOVE, SWP_NOSIZE,
     };
+
+    /// Makes the taskbar the widget's owner. Windows always keeps an owned window above its
+    /// owner, so when the taskbar is activated the widget rises with it in the same instant,
+    /// instead of disappearing until we notice and raise it again. Flyouts (tray overflow,
+    /// calendar, Start) are separate windows and still cover it, as they should.
+    pub fn own_by_taskbar(hwnd: HWND) -> bool {
+        unsafe {
+            let bar = FindWindowW(wide("Shell_TrayWnd").as_ptr(), std::ptr::null());
+            if bar.is_null() {
+                return false;
+            }
+            if GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT) != bar as isize {
+                SetWindowLongPtrW(hwnd, GWLP_HWNDPARENT, bar as isize);
+            }
+            GetWindowLongPtrW(hwnd, GWLP_HWNDPARENT) == bar as isize
+        }
+    }
+
+    /// Whether the taskbar itself is the active window: the only time it covers the widget.
+    /// Its flyouts (tray overflow, calendar, Start) are other windows, and the widget must
+    /// stay below those instead of fighting them for the top.
+    pub fn taskbar_focused() -> bool {
+        unsafe {
+            let fg = GetForegroundWindow();
+            if fg.is_null() {
+                return false;
+            }
+            let mut buf = [0u16; 64];
+            let n = GetClassNameW(fg, buf.as_mut_ptr(), buf.len() as i32);
+            let class = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
+            class == "Shell_TrayWnd" || class == "Shell_SecondaryTrayWnd"
+        }
+    }
 
     fn wide(s: &str) -> Vec<u16> {
         s.encode_utf16().chain(Some(0)).collect()
@@ -63,6 +97,24 @@ mod win {
         })
     }
 
+    /// The window showing the tray icon at (x, y): the overflow flyout when the icon was
+    /// clicked inside it. Found by position, so it doesn't depend on the flyout's class name.
+    pub fn window_at(x: f64, y: f64) -> Option<Rect> {
+        use windows_sys::Win32::Foundation::POINT;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{GetAncestor, WindowFromPoint, GA_ROOT};
+        unsafe {
+            let hit = WindowFromPoint(POINT { x: x as i32, y: y as i32 });
+            if hit.is_null() {
+                return None;
+            }
+            let root = GetAncestor(hit, GA_ROOT);
+            if root.is_null() || IsWindowVisible(root) == 0 {
+                return None;
+            }
+            rect_of(root)
+        }
+    }
+
     /// (taskbar, notification area) of the primary taskbar, if it is showing.
     pub fn taskbar() -> Option<(Rect, Rect)> {
         unsafe {
@@ -77,6 +129,41 @@ mod win {
 
     pub fn mouse_down() -> bool {
         unsafe { (GetAsyncKeyState(VK_LBUTTON as i32) as u16 & 0x8000) != 0 }
+    }
+
+    /// If the taskbar sits above `hwnd` in the z-order, moves `hwnd` to just above the taskbar
+    /// (not to the very top, so tray flyouts, the calendar and Start stay above it). Returns
+    /// whether it had to move. Windows 11 re-asserts the taskbar on top at times without
+    /// activating it, which would otherwise hide the widget until the taskbar is clicked.
+    pub fn stay_above_taskbar(hwnd: HWND) -> bool {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindow, GW_HWNDPREV};
+        unsafe {
+            let bar = FindWindowW(wide("Shell_TrayWnd").as_ptr(), std::ptr::null());
+            if bar.is_null() {
+                return false;
+            }
+            // Walk up from our window: meeting the taskbar means it covers us.
+            let mut w = GetWindow(hwnd, GW_HWNDPREV);
+            let mut covered = false;
+            for _ in 0..512 {
+                if w.is_null() {
+                    break;
+                }
+                if w == bar {
+                    covered = true;
+                    break;
+                }
+                w = GetWindow(w, GW_HWNDPREV);
+            }
+            if !covered {
+                return false;
+            }
+            // SetWindowPos puts us below `after`: the window right above the taskbar.
+            let above_bar = GetWindow(bar, GW_HWNDPREV);
+            let after = if above_bar.is_null() { HWND_TOPMOST } else { above_bar };
+            SetWindowPos(hwnd, after, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+            true
+        }
     }
 
     /// The taskbar is topmost too; whoever asserted it last wins.
@@ -115,6 +202,15 @@ mod win {
     pub fn mouse_down() -> bool {
         false
     }
+    pub fn taskbar_focused() -> bool {
+        false
+    }
+    pub fn window_at(_: f64, _: f64) -> Option<Rect> {
+        None
+    }
+    pub fn own_by_taskbar(_: ()) -> bool {
+        false
+    }
     pub fn taskbar_is_light() -> bool {
         false
     }
@@ -128,8 +224,25 @@ fn window(app: &AppHandle) -> Option<WebviewWindow> {
     app.get_webview_window(LABEL)
 }
 
-/// Docks the widget over the taskbar, left of the notification area.
-fn place_docked(app: &AppHandle, win: &WebviewWindow) -> bool {
+/// Center of the notification area (by the clock), in physical px.
+pub fn tray_center() -> Option<(f64, f64)> {
+    let (_, tray) = win::taskbar()?;
+    Some(((tray.left + tray.right) as f64 / 2.0, (tray.top + tray.bottom) as f64 / 2.0))
+}
+
+/// The window under a screen point (physical px): the tray overflow flyout for icons in it.
+pub fn window_at(x: f64, y: f64) -> Option<Rect> {
+    win::window_at(x, y)
+}
+
+/// The top of the primary taskbar, in physical px.
+pub fn taskbar_top() -> Option<f64> {
+    win::taskbar().map(|(bar, _)| bar.top as f64)
+}
+
+/// Docks the widget over the taskbar, left of the notification area. `raise` brings it back
+/// above the taskbar (only needed when the taskbar has just been activated).
+fn place_docked(app: &AppHandle, win: &WebviewWindow, raise: bool) -> bool {
     let Some((bar, tray)) = win::taskbar() else { return false };
     let scale = win.scale_factor().unwrap_or(1.0);
     let width = (*app.state::<AppState>().dock_width.lock().unwrap() * scale).ceil() as i32;
@@ -144,8 +257,16 @@ fn place_docked(app: &AppHandle, win: &WebviewWindow) -> bool {
     }
     #[cfg(windows)]
     if let Ok(hwnd) = win.hwnd() {
-        win::raise(hwnd.0 as _);
+        // Owned by the taskbar, the widget stays above it on its own; raising by hand is only
+        // a fallback (it lags a tick behind and flickers when the tray is toggled quickly).
+        let owned = win::own_by_taskbar(hwnd.0 as _);
+        if raise && !owned {
+            win::raise(hwnd.0 as _);
+        }
+        win::stay_above_taskbar(hwnd.0 as _);
     }
+    #[cfg(not(windows))]
+    let _ = raise;
     true
 }
 
@@ -159,7 +280,7 @@ pub fn keep_docked(app: AppHandle) {
             continue;
         }
         let Some(win) = window(&app) else { continue };
-        if place_docked(&app, &win) {
+        if place_docked(&app, &win, win::taskbar_focused()) {
             if !win.is_visible().unwrap_or(false) {
                 let _ = win.show();
             }
@@ -173,7 +294,7 @@ pub fn keep_docked(app: AppHandle) {
 pub fn show_docked(app: &AppHandle) {
     if let Some(win) = window(app) {
         let _ = app.emit_to(LABEL, "dock-floating", false);
-        if place_docked(app, &win) {
+        if place_docked(app, &win, true) {
             let _ = win.show();
         }
     }
